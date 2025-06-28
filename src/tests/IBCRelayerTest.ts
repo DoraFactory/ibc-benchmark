@@ -639,28 +639,78 @@ export class IBCRelayerTest extends BaseTest {
           return null
         }
 
-        // 提取relayer地址
+        // 提取relayer地址 - 从message事件的sender属性中获取
         let relayerAddress = 'unknown'
         if (tx.tx_result && tx.tx_result.events) {
           for (const event of tx.tx_result.events) {
             if (event.type === 'message' && event.attributes) {
-              const signerAttr = event.attributes.find(
-                (attr: any) => attr.key === 'signer'
+              const senderAttr = event.attributes.find(
+                (attr: any) => attr.key === 'sender'
               )
-              if (signerAttr) {
-                relayerAddress = signerAttr.value
+              if (senderAttr && senderAttr.value) {
+                relayerAddress = senderAttr.value
                 break
               }
             }
           }
         }
 
+        // 提取relayer的memo信息 - 需要解析base64编码的交易体
+        let relayerMemo: string | undefined
+        try {
+          // 从tx字段中解析memo（tx字段是base64编码的）
+          if (tx.tx) {
+            // 使用Node.js的Buffer来解码base64
+            const txBytes = Buffer.from(tx.tx, 'base64')
+            const txString = txBytes.toString('utf8')
+
+            // 匹配任何relayer的memo格式，不限定特定的relayer名称
+            const anyRelayerMemoMatch = txString.match(
+              /([a-zA-Z0-9_-]{2,30})\s*\|\s*(hermes|rly|relayer)\s+[^\s]+\s*\([^)]+\)/i
+            )
+            if (anyRelayerMemoMatch) {
+              relayerMemo = anyRelayerMemoMatch[0].trim()
+              // 直接去掉第一个字符（通常是无关的"F"字符）
+              if (relayerMemo.length > 0 && relayerMemo[0] === 'F') {
+                relayerMemo = relayerMemo.substring(1)
+              }
+            } else {
+              // 如果没找到标准格式，尝试寻找其他可能的relayer标识符模式
+              const generalRelayerMatch = txString.match(
+                /([a-zA-Z0-9_-]{3,20})\s*\|\s*([^|]*(?:hermes|relayer|rly)[^|]*)/i
+              )
+              if (generalRelayerMatch) {
+                relayerMemo =
+                  `${generalRelayerMatch[1]} | ${generalRelayerMatch[2]}`.trim()
+              } else {
+                // 最后尝试匹配任何包含版本信息的memo
+                const versionMemoMatch = txString.match(
+                  /([a-zA-Z0-9_-]+)\s+[\d.+a-f]+\s*\([^)]+\)/i
+                )
+                if (versionMemoMatch) {
+                  relayerMemo = versionMemoMatch[0].trim()
+                }
+              }
+            }
+          }
+        } catch (memoError) {
+          logger.debug('Failed to decode transaction memo:', memoError)
+        }
+
         logger.info(
           `🎯 Found recent osmosis recv_packet: ${tx.hash} at height ${tx.height} (${timeDiff} blocks ago)`
         )
+        logger.info(`   Relayer Address: ${relayerAddress}`)
+        if (relayerMemo) {
+          logger.info(`   Relayer Memo: ${relayerMemo}`)
+        } else {
+          logger.debug('   No relayer memo found')
+        }
+
         return {
           txHash: tx.hash,
           relayerAddress,
+          memo: relayerMemo,
         }
       }
 
