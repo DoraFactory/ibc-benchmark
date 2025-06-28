@@ -1,0 +1,56 @@
+{
+  "name": "ibc-relayer-test",
+  "version": "1.0.0",
+  "description": "IBC Relayer Testing Framework for vota-bobtail incentivized testnet",
+  "main": "dist/index.js",
+  "scripts": {
+    "build": "tsc",
+    "start": "node dist/index.js",
+    "test": "npm run build && node dist/index.js",
+    "dev": "ts-node src/index.ts",
+    "relayer-test": "npm run build && node dist/index.js relayer-test",
+    "relayer-test:dev": "ts-node src/index.ts relayer-test",
+    "single-transfer": "npm run build && node dist/index.js single-transfer",
+    "single-transfer:dev": "ts-node src/index.ts single-transfer",
+    "continuous": "npm run build && node dist/index.js relayer-test --continuous",
+    "continuous:dev": "ts-node src/index.ts relayer-test --continuous",
+    "show-logs": "npm run build && node dist/index.js show-logs",
+    "show-logs:dev": "ts-node src/index.ts show-logs",
+    "generate-report": "npm run build && node dist/index.js generate-report",
+    "generate-report:dev": "ts-node src/index.ts generate-report",
+    "health": "npm run build && node dist/index.js health",
+    "health:dev": "ts-node src/index.ts health"
+  },
+  "dependencies": {
+    "@cosmjs/stargate": "^0.32.2",
+    "@cosmjs/proto-signing": "^0.32.2",
+    "@cosmjs/tendermint-rpc": "^0.32.2",
+    "@cosmjs/cosmwasm-stargate": "^0.32.2",
+    "axios": "^1.6.0",
+    "ws": "^8.14.0",
+    "chalk": "^4.1.2",
+    "cli-progress": "^3.12.0",
+    "commander": "^11.1.0",
+    "dotenv": "^16.3.1"
+  },
+  "devDependencies": {
+    "@types/node": "^20.8.0",
+    "@types/ws": "^8.5.8",
+    "typescript": "^5.2.0",
+    "ts-node": "^10.9.0"
+  },
+  "keywords": [
+    "cosmos",
+    "ibc",
+    "relayer",
+    "testing",
+    "blockchain",
+    "vota-bobtail",
+    "incentivized-testnet"
+  ],
+  "author": "DoraFactory",
+  "license": "MIT",
+  "bin": {
+    "ibc-relayer-test": "./dist/index.js"
+  }
+}

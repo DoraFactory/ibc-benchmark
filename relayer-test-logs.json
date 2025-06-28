@@ -1,0 +1,102 @@
+[
+  {
+    "testTime": "2025-06-28T02:20:14.602Z",
+    "txHash": "N/A",
+    "packetSequence": 0,
+    "success": false,
+    "latency": 0,
+    "errorMessage": "IBC Transfer failed: Exception during IBC transfer: Broadcasting transaction failed with code 13 (codespace: sdk). Log: insufficient fees; got: 50000000000000000peaka required: 500000000000000000peaka: insufficient fee"
+  },
+  {
+    "testTime": "2025-06-28T02:20:45.431Z",
+    "txHash": "N/A",
+    "packetSequence": 0,
+    "success": false,
+    "latency": 0,
+    "errorMessage": "IBC Transfer failed: Exception during IBC transfer: Do not know how to serialize a BigInt"
+  },
+  {
+    "testTime": "2025-06-28T02:21:16.092Z",
+    "txHash": "DBA4A4A46A122B4C1AA5F7A39FA7148030F1D24E251E4CF8099BC0BC005AF52B",
+    "packetSequence": 0,
+    "success": false,
+    "latency": 0,
+    "errorMessage": "IBC Transfer failed: Transaction failed with code 14: failed to execute message; message index: 0: receiving chain block height >= packet timeout height (5-28924029 >= 0-1000): packet timeout"
+  },
+  {
+    "testTime": "2025-06-28T02:22:11.971Z",
+    "txHash": "N/A",
+    "packetSequence": 0,
+    "success": false,
+    "latency": 0,
+    "errorMessage": "IBC Transfer failed: Exception during IBC transfer: Failed to extract packet sequence from transaction log"
+  },
+  {
+    "testTime": "2025-06-28T02:24:05.965Z",
+    "txHash": "A24C40287C00D9B1EE2F0C7FBBFC0B0E833F6E2AE6BA03F81E74AEF96462CFA1",
+    "packetSequence": 1,
+    "success": false,
+    "latency": 60000,
+    "errorMessage": "Acknowledgement timeout"
+  },
+  {
+    "testTime": "2025-06-28T02:25:43.437Z",
+    "txHash": "104EAED7FF4B8CF08D82EE056D38D8F4ECCA5F1430C3A126769F05B58ED42D41",
+    "packetSequence": 1,
+    "success": false,
+    "latency": 60000,
+    "errorMessage": "Acknowledgement timeout"
+  },
+  {
+    "testTime": "2025-06-28T02:27:55.090Z",
+    "txHash": "921A277A60B57126DD738332D7471103F1E22EF5AD4CAE15A81A6583288FD263",
+    "packetSequence": 1,
+    "success": false,
+    "latency": 60000,
+    "errorMessage": "Acknowledgement timeout"
+  },
+  {
+    "testTime": "2025-06-28T02:29:50.426Z",
+    "txHash": "F20A3550C0BDFA8345776C7C84703AFE1849C61110FDCA5F906FA7E6D52635B5",
+    "packetSequence": 14,
+    "success": false,
+    "latency": 60000,
+    "errorMessage": "Acknowledgement timeout"
+  },
+  {
+    "testTime": "2025-06-28T04:37:48.105Z",
+    "txHash": "0723308266CDD861CE5CA269D30CB6DC15796CBA0F2AB9F74F03F91CD23E2A43",
+    "packetSequence": 15,
+    "success": true,
+    "latency": 11146,
+    "targetChainTxHash": "7D9757ED5BF5A493B4347A6ED1A30B46C947E723840516B77698BFF65789FFD1",
+    "relayerSigner": "unknown"
+  },
+  {
+    "testTime": "2025-06-28T04:40:04.594Z",
+    "txHash": "A79DF042F379CFE8DB66367FFD0F2065B552BC8F66D793FC4FEA8E6E4817F85D",
+    "packetSequence": 16,
+    "success": true,
+    "latency": 2524,
+    "targetChainTxHash": "559F0BE612FC8913B9AE5D205450A52639ED2B85FD8192DF5A48254D72FE7819",
+    "relayerSigner": "unknown"
+  },
+  {
+    "testTime": "2025-06-28T04:43:24.586Z",
+    "txHash": "07EDD03FDFF417B3D7284C7EFDD97FFE01D7F77EB50841AE2F1841BFDCDE1D75",
+    "packetSequence": 17,
+    "success": true,
+    "latency": 7491,
+    "targetChainTxHash": "F1E408EF5709D7FDFD2B4F8256226E002207807113610E7D86E810B7075176C2",
+    "relayerSigner": "unknown"
+  },
+  {
+    "testTime": "2025-06-28T04:44:11.842Z",
+    "txHash": "1D09818891DCFD10A2F99FFC3139EE04F4AAFC68D6C43DC68A7572E68AA8C1A9",
+    "packetSequence": 18,
+    "success": true,
+    "latency": 10373,
+    "targetChainTxHash": "87F3DA972993B87787B4EBAC38FB1F1177D15CCAC8A62514E9DF8260345F9D26",
+    "relayerSigner": "unknown"
+  }
+]
