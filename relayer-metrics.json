@@ -1,15 +1,15 @@
 [
   {
     "validatorMoniker": "breskulpeak | hermes 1.13.1+5e403dd5 (https://hermes.informal.systems)",
-    "totalTests": 1,
-    "successfulRelays": 1,
+    "totalTests": 17,
+    "successfulRelays": 17,
     "failedRelays": 0,
-    "averageLatency": 9851,
-    "maxLatency": 9851,
-    "minLatency": 9851,
+    "averageLatency": 9981.411764705883,
+    "maxLatency": 12646,
+    "minLatency": 7007,
     "successRate": 100,
-    "uptimeHours": 0.1,
+    "uptimeHours": 4.426278055555556,
     "continuousFailures": 0,
-    "lastActiveTime": "2025-06-28T05:38:05.340Z"
+    "lastActiveTime": "2025-06-28T10:03:39.941Z"
   }
 ]

@@ -148,6 +148,148 @@ program
   })
 
 program
+  .command('continuous-transfer')
+  .description('Run continuous IBC transfer tests')
+  .option('-v, --verbose', 'Enable verbose logging')
+  .option(
+    '-i, --interval <seconds>',
+    'Interval between transfers in seconds',
+    '30'
+  )
+  .option(
+    '-c, --count <number>',
+    'Maximum number of transfers (0 = unlimited)',
+    '0'
+  )
+  .option('--stop-on-error', 'Stop testing when an error occurs')
+  .action(async (options) => {
+    if (options.verbose) {
+      logger.setLogLevel('debug')
+    }
+
+    const interval = parseInt(options.interval)
+    const maxCount = parseInt(options.count)
+    const stopOnError = options.stopOnError
+
+    if (interval < 5) {
+      logger.error(
+        'Minimum interval is 5 seconds to avoid overwhelming the network'
+      )
+      process.exit(1)
+    }
+
+    try {
+      const { IBCRelayerTest } = await import('./tests/IBCRelayerTest')
+      const { relayerConfig } = await import('./config')
+
+      const relayerTest = new IBCRelayerTest(relayerConfig)
+
+      logger.info('🔄 Starting continuous IBC transfer tests...')
+      logger.info(`   Interval: ${interval} seconds`)
+      logger.info(`   Max count: ${maxCount === 0 ? 'unlimited' : maxCount}`)
+      logger.info(`   Stop on error: ${stopOnError ? 'yes' : 'no'}`)
+      logger.info('   Press Ctrl+C to stop')
+      logger.separator()
+
+      let count = 0
+      let successCount = 0
+      let errorCount = 0
+
+      // 处理Ctrl+C优雅退出
+      let isShuttingDown = false
+      process.on('SIGINT', () => {
+        if (isShuttingDown) {
+          logger.info('\n💥 Force exit...')
+          process.exit(1)
+        }
+
+        isShuttingDown = true
+        logger.info('\n🛑 Received stop signal, finishing current test...')
+        logger.info('   Press Ctrl+C again to force exit')
+      })
+
+      while (!isShuttingDown && (maxCount === 0 || count < maxCount)) {
+        count++
+        const testStartTime = Date.now()
+
+        logger.info(`\n📡 Test #${count} starting...`)
+
+        try {
+          const log = await relayerTest.runSingleTransferTest()
+
+          if (log.success) {
+            successCount++
+            logger.info(`✅ Test #${count} completed successfully`)
+            logger.info(`   TX Hash: ${log.txHash}`)
+            logger.info(`   Latency: ${log.latency}ms`)
+            logger.info(`   Relayer: ${log.memoIdentifier || 'Unknown'}`)
+            logger.info(`   Signer: ${log.relayerSigner || 'Unknown'}`)
+          } else {
+            errorCount++
+            logger.error(`❌ Test #${count} failed: ${log.errorMessage}`)
+
+            if (stopOnError) {
+              logger.error('Stopping due to --stop-on-error flag')
+              break
+            }
+          }
+        } catch (error) {
+          errorCount++
+          logger.error(`❌ Test #${count} crashed:`, error)
+
+          if (stopOnError) {
+            logger.error('Stopping due to --stop-on-error flag')
+            break
+          }
+        }
+
+        // 显示统计信息
+        const successRate = ((successCount / count) * 100).toFixed(1)
+        logger.info(
+          `📊 Stats: ${successCount}/${count} success (${successRate}%), ${errorCount} errors`
+        )
+
+        // 如果还有更多测试要运行，等待间隔时间
+        if (!isShuttingDown && (maxCount === 0 || count < maxCount)) {
+          const testDuration = Date.now() - testStartTime
+          const waitTime = Math.max(0, interval * 1000 - testDuration)
+
+          if (waitTime > 0) {
+            logger.info(
+              `⏳ Waiting ${Math.ceil(waitTime / 1000)}s until next test...`
+            )
+            await new Promise((resolve) => {
+              const timeout = setTimeout(resolve, waitTime)
+              // 允许Ctrl+C中断等待
+              const checkShutdown = setInterval(() => {
+                if (isShuttingDown) {
+                  clearTimeout(timeout)
+                  clearInterval(checkShutdown)
+                  resolve(undefined)
+                }
+              }, 100)
+            })
+          }
+        }
+      }
+
+      logger.separator()
+      logger.info('🏁 Continuous testing completed')
+      logger.info(`   Total tests: ${count}`)
+      logger.info(`   Successful: ${successCount}`)
+      logger.info(`   Failed: ${errorCount}`)
+      logger.info(
+        `   Success rate: ${((successCount / count) * 100).toFixed(1)}%`
+      )
+
+      process.exit(errorCount === 0 ? 0 : 1)
+    } catch (error) {
+      logger.error('Failed to run continuous transfer tests:', error)
+      process.exit(1)
+    }
+  })
+
+program
   .command('config')
   .description('Show current configuration')
   .action(() => {

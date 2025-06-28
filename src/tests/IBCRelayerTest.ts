@@ -412,10 +412,10 @@ export class IBCRelayerTest extends BaseTest {
         amount: [
           {
             denom: 'peaka',
-            amount: '500000000000000000', // 0.5 peaka as fee (increased from 0.05)
+            amount: '500000000000000', // 0.0005 DORA (500,000 peaka) - reasonable fee
           },
         ],
-        gas: '500000000',
+        gas: '200000', // Reasonable gas limit based on actual usage (~90k)
       }
 
       const msg = {
