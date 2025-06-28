@@ -655,46 +655,70 @@ export class IBCRelayerTest extends BaseTest {
           }
         }
 
-        // 提取relayer的memo信息 - 需要解析base64编码的交易体
+        // 提取osmosis上relayer交易的memo信息
         let relayerMemo: string | undefined
+        let ibcPacketMemo: string | undefined
+
         try {
-          // 从tx字段中解析memo（tx字段是base64编码的）
           if (tx.tx) {
-            // 使用Node.js的Buffer来解码base64
             const txBytes = Buffer.from(tx.tx, 'base64')
             const txString = txBytes.toString('utf8')
 
-            // 匹配任何relayer的memo格式，不限定特定的relayer名称
-            const anyRelayerMemoMatch = txString.match(
-              /([a-zA-Z0-9_-]{2,30})\s*\|\s*(hermes|rly|relayer)\s+[^\s]+\s*\([^)]+\)/i
-            )
-            if (anyRelayerMemoMatch) {
-              relayerMemo = anyRelayerMemoMatch[0].trim()
-              // 直接去掉第一个字符（通常是无关的"F"字符）
-              if (relayerMemo.length > 0 && relayerMemo[0] === 'F') {
-                relayerMemo = relayerMemo.substring(1)
-              }
-            } else {
-              // 如果没找到标准格式，尝试寻找其他可能的relayer标识符模式
-              const generalRelayerMatch = txString.match(
-                /([a-zA-Z0-9_-]{3,20})\s*\|\s*([^|]*(?:hermes|relayer|rly)[^|]*)/i
-              )
-              if (generalRelayerMatch) {
-                relayerMemo =
-                  `${generalRelayerMatch[1]} | ${generalRelayerMatch[2]}`.trim()
+            // 查找交易外层的memo字段（relayer设置的memo）
+            const outerMemoMatch = txString.match(/"memo"\s*:\s*"([^"]*)"/)
+            if (outerMemoMatch && outerMemoMatch[1]) {
+              const extractedMemo = outerMemoMatch[1].trim()
+
+              // 如果memo不是IBC包的memo（不以IBC-relay-test-开头），则认为是relayer的memo
+              if (
+                !extractedMemo.startsWith('IBC-relay-test-') &&
+                extractedMemo.length > 0
+              ) {
+                relayerMemo = this.cleanProtobufArtifacts(extractedMemo)
+                logger.debug(`Found and cleaned relayer memo: "${relayerMemo}"`)
               } else {
-                // 最后尝试匹配任何包含版本信息的memo
-                const versionMemoMatch = txString.match(
-                  /([a-zA-Z0-9_-]+)\s+[\d.+a-f]+\s*\([^)]+\)/i
-                )
-                if (versionMemoMatch) {
-                  relayerMemo = versionMemoMatch[0].trim()
+                // 这是IBC包的memo，保存起来但不作为relayer memo
+                ibcPacketMemo = extractedMemo
+                logger.debug(`Found IBC packet memo: "${ibcPacketMemo}"`)
+              }
+            }
+
+            // 如果没有找到relayer memo，尝试查找其他可能的memo模式
+            if (!relayerMemo) {
+              // 查找可能的relayer标识符模式
+              const relayerPatterns = [
+                // 匹配完整的 "xxx | hermes version (url)" 格式
+                /([a-zA-Z0-9_\s-]+\s*\|\s*hermes\s+[\d.+a-f]+\s*\([^)]+\))/i,
+                // 匹配 "xxx | rly version" 格式
+                /([a-zA-Z0-9_\s-]+\s*\|\s*rly\s+[\d.+a-f-]+)/i,
+                // 匹配任何包含relayer和版本的模式
+                /([a-zA-Z0-9_\s-]+\s*\|\s*(?:hermes|rly|relayer)\s+[\d.+a-f-]+[^\\]*)/i,
+              ]
+
+              for (const pattern of relayerPatterns) {
+                const match = txString.match(pattern)
+                if (match && match[1]) {
+                  relayerMemo = this.cleanProtobufArtifacts(match[1])
+                  logger.debug(
+                    `Found relayer memo with pattern: "${relayerMemo}"`
+                  )
+                  break
                 }
               }
             }
           }
+
+          // 记录调试信息
+          if (!relayerMemo && ibcPacketMemo) {
+            logger.debug('Only found IBC packet memo, no relayer-specific memo')
+          } else if (!relayerMemo) {
+            logger.debug('No memo found in osmosis transaction')
+          }
         } catch (memoError) {
-          logger.debug('Failed to decode transaction memo:', memoError)
+          logger.debug(
+            'Failed to extract memo from osmosis transaction:',
+            memoError
+          )
         }
 
         logger.info(
@@ -1111,6 +1135,31 @@ export class IBCRelayerTest extends BaseTest {
       logger.error('Error extracting relayer address:', error)
       return null
     }
+  }
+
+  /**
+   * 清理从Protobuf二进制数据中提取的memo，移除字段标识符等artifacts
+   */
+  private cleanProtobufArtifacts(memo: string): string {
+    if (!memo) return memo
+
+    // 移除常见的Protobuf字段标识符字符（通常是单个大写字母）
+    // 这些字符通常出现在memo开头，是varint编码的字段标识符
+    const protobufPrefixes = /^[A-Z\x00-\x1F\x7F-\xFF]/
+    if (memo.length > 1 && protobufPrefixes.test(memo[0])) {
+      // 检查第二个字符是否是合理的memo开始（字母、数字或常见符号）
+      if (/[a-zA-Z0-9\s-]/.test(memo[1])) {
+        memo = memo.substring(1)
+      }
+    }
+
+    // 移除末尾的非打印字符和二进制数据
+    memo = memo.replace(/[\x00-\x1F\x7F-\xFF]+.*$/, '')
+
+    // 移除转义字符
+    memo = memo.replace(/\\"/g, '"').replace(/\\\\/g, '\\')
+
+    return memo.trim()
   }
 
   private extractMemoFromTx(tx: any): string | undefined {
