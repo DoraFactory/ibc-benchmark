@@ -393,6 +393,54 @@ program
   })
 
 program
+  .command('regenerate-metrics')
+  .description('Regenerate metrics file from existing test logs')
+  .action(async () => {
+    try {
+      const { IBCRelayerTest } = await import('./tests/IBCRelayerTest')
+      const { relayerConfig } = await import('./config')
+      const { writeFileSync } = await import('fs')
+
+      const relayerTest = new IBCRelayerTest(relayerConfig)
+      const logs = relayerTest.getRelayerLogs()
+
+      if (logs.length === 0) {
+        logger.warn('No test logs found to regenerate metrics')
+        logger.info(
+          'Make sure relayer-test-logs.json exists and contains test data'
+        )
+        return
+      }
+
+      // 重新计算metrics
+      const metrics = relayerTest.getPerformanceMetrics()
+
+      // 保存到文件
+      const metricsFile = 'relayer-metrics.json'
+      writeFileSync(metricsFile, JSON.stringify(metrics, null, 2))
+
+      logger.success(`✅ Metrics regenerated successfully!`)
+      logger.info(
+        `📊 Generated metrics for ${metrics.length} relayers from ${logs.length} test logs`
+      )
+      logger.info(`💾 Saved to: ${metricsFile}`)
+
+      // 显示简要统计
+      metrics.forEach((metric, index) => {
+        logger.info(`${index + 1}. ${metric.validatorMoniker}`)
+        logger.info(
+          `   Tests: ${
+            metric.totalTests
+          }, Success Rate: ${metric.successRate.toFixed(1)}%`
+        )
+      })
+    } catch (error) {
+      logger.error('Failed to regenerate metrics', error)
+      process.exit(1)
+    }
+  })
+
+program
   .command('health')
   .description('Check health of both chains')
   .action(async () => {

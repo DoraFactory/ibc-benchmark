@@ -107,16 +107,34 @@ get_error_log_file() {
 # 检查是否已在运行
 check_running() {
     local pid_file=$(get_pid_file)
-    if [ -f "$pid_file" ]; then
-        local pid=$(cat "$pid_file")
-        if ps -p "$pid" > /dev/null 2>&1; then
-            return 0  # 正在运行
+    
+    # 首先检查是否有continuous-transfer进程在运行
+    local running_pids=$(ps aux | grep "continuous-transfer" | grep -v grep | awk '{print $2}')
+    
+    if [ -n "$running_pids" ]; then
+        # 如果有进程在运行，检查PID文件是否匹配
+        if [ -f "$pid_file" ]; then
+            local stored_pid=$(cat "$pid_file")
+            # 检查存储的PID是否在运行的进程中
+            if echo "$running_pids" | grep -q "^${stored_pid}$"; then
+                return 0
+            else
+                # PID文件不匹配，更新PID文件为第一个运行的进程
+                echo "$running_pids" | head -n1 > "$pid_file"
+                return 0
+            fi
         else
-            rm -f "$pid_file"  # 清理无效的PID文件
-            return 1  # 未运行
+            # 没有PID文件但有进程在运行，创建PID文件
+            echo "$running_pids" | head -n1 > "$pid_file"
+            return 0
         fi
+    else
+        # 没有进程在运行，清理PID文件
+        if [ -f "$pid_file" ]; then
+            rm -f "$pid_file"
+        fi
+        return 1
     fi
-    return 1  # 未运行
 }
 
 # 显示运行状态
@@ -147,28 +165,45 @@ show_status() {
 stop_process() {
     local pid_file=$(get_pid_file)
     
-    if check_running; then
-        local pid=$(cat "$pid_file")
-        log "停止IBC连续测试进程 (PID: $pid)..."
+    # 查找所有continuous-transfer相关进程
+    local running_pids=$(ps aux | grep "continuous-transfer" | grep -v grep | awk '{print $2}')
+    
+    if [ -n "$running_pids" ]; then
+        log "发现以下IBC连续测试进程:"
+        ps aux | grep "continuous-transfer" | grep -v grep | while read line; do
+            echo "  $line"
+        done
         
-        # 尝试优雅停止
-        kill "$pid" 2>/dev/null || true
+        log "停止所有IBC连续测试进程..."
+        
+        # 尝试优雅停止所有进程
+        for pid in $running_pids; do
+            log "停止进程 PID: $pid"
+            kill "$pid" 2>/dev/null || true
+        done
         
         # 等待进程结束
         local count=0
-        while ps -p "$pid" > /dev/null 2>&1 && [ $count -lt 10 ]; do
+        while [ $count -lt 10 ]; do
+            local still_running=$(ps aux | grep "continuous-transfer" | grep -v grep | awk '{print $2}')
+            if [ -z "$still_running" ]; then
+                break
+            fi
             sleep 1
             ((count++))
         done
         
-        # 如果还在运行，强制停止
-        if ps -p "$pid" > /dev/null 2>&1; then
-            log_warn "强制停止进程..."
-            kill -9 "$pid" 2>/dev/null || true
+        # 检查是否还有进程在运行，强制停止
+        local still_running=$(ps aux | grep "continuous-transfer" | grep -v grep | awk '{print $2}')
+        if [ -n "$still_running" ]; then
+            log_warn "强制停止剩余进程..."
+            for pid in $still_running; do
+                kill -9 "$pid" 2>/dev/null || true
+            done
         fi
         
         rm -f "$pid_file"
-        log "IBC连续测试已停止"
+        log "✅ 所有IBC连续测试进程已停止"
     else
         log_info "IBC连续测试未运行"
     fi
@@ -240,12 +275,44 @@ start_continuous_test() {
     log_info "遇错停止: $stop_on_error"
     log_info "日志文件: $log_file"
     
-    # 启动后台进程
+    # 启动后台进程 - 支持跨天日志文件自动切换
     nohup bash -c "
-        echo \"[$(date '+%Y-%m-%d %H:%M:%S')] 开始IBC连续测试\" >> '$log_file'
-        echo \"[$(date '+%Y-%m-%d %H:%M:%S')] 命令: $cmd\" >> '$log_file'
-        $cmd >> '$log_file' 2>> '$error_log_file'
-        echo \"[$(date '+%Y-%m-%d %H:%M:%S')] IBC连续测试结束\" >> '$log_file'
+        # 初始日志记录
+        current_log_file=\"${LOG_DIR}/${SCRIPT_NAME}-\$(date '+%Y%m%d').log\"
+        current_error_log_file=\"${LOG_DIR}/${SCRIPT_NAME}-error-\$(date '+%Y%m%d').log\"
+        
+        echo \"[$(date '+%Y-%m-%d %H:%M:%S')] 开始IBC连续测试\" >> \"\$current_log_file\"
+        echo \"[$(date '+%Y-%m-%d %H:%M:%S')] 命令: $cmd\" >> \"\$current_log_file\"
+        
+        # 创建一个包装脚本来处理日志文件切换
+        exec > >(
+            while IFS= read -r line; do
+                # 每次写入时检查是否需要切换日志文件
+                new_log_file=\"${LOG_DIR}/${SCRIPT_NAME}-\$(date '+%Y%m%d').log\"
+                if [ \"\$new_log_file\" != \"\$current_log_file\" ]; then
+                    echo \"[$(date '+%Y-%m-%d %H:%M:%S')] 切换到新的日志文件: \$new_log_file\" >> \"\$current_log_file\"
+                    current_log_file=\"\$new_log_file\"
+                    echo \"[$(date '+%Y-%m-%d %H:%M:%S')] 从前一天的日志继续\" >> \"\$current_log_file\"
+                fi
+                echo \"\$line\" >> \"\$current_log_file\"
+            done
+        ) 2> >(
+            while IFS= read -r line; do
+                # 错误日志也支持日期切换
+                new_error_log_file=\"${LOG_DIR}/${SCRIPT_NAME}-error-\$(date '+%Y%m%d').log\"
+                if [ \"\$new_error_log_file\" != \"\$current_error_log_file\" ]; then
+                    current_error_log_file=\"\$new_error_log_file\"
+                fi
+                echo \"\$line\" >> \"\$current_error_log_file\"
+            done
+        )
+        
+        # 执行实际命令
+        $cmd
+        
+        # 结束日志记录
+        final_log_file=\"${LOG_DIR}/${SCRIPT_NAME}-\$(date '+%Y%m%d').log\"
+        echo \"[$(date '+%Y-%m-%d %H:%M:%S')] IBC连续测试结束\" >> \"\$final_log_file\"
     " > /dev/null 2>&1 &
     
     local pid=$!

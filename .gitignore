@@ -3,3 +3,4 @@ dist/
 node_modules/
 ./relayer-metrics.json
 ./relayer-test-logs.json``
+data/

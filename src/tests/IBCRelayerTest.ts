@@ -660,59 +660,88 @@ export class IBCRelayerTest extends BaseTest {
         let ibcPacketMemo: string | undefined
 
         try {
+          // 详细调试：打印交易结构
+          logger.info('=== MEMO EXTRACTION DEBUG ===')
+          logger.info(`Transaction hash: ${tx.hash}`)
+          logger.info(`tx.tx exists: ${!!tx.tx}`)
+          logger.info(`tx.tx_result exists: ${!!tx.tx_result}`)
+
+          // 尝试多种方法获取memo
           if (tx.tx) {
-            const txBytes = Buffer.from(tx.tx, 'base64')
-            const txString = txBytes.toString('utf8')
+            try {
+              const txBytes = Buffer.from(tx.tx, 'base64')
+              logger.info(`Transaction bytes length: ${txBytes.length}`)
 
-            // 查找交易外层的memo字段（relayer设置的memo）
-            const outerMemoMatch = txString.match(/"memo"\s*:\s*"([^"]*)"/)
-            if (outerMemoMatch && outerMemoMatch[1]) {
-              const extractedMemo = outerMemoMatch[1].trim()
+              const { decodeTxRaw } = await import('@cosmjs/proto-signing')
+              const decodedTx = decodeTxRaw(txBytes)
 
-              // 如果memo不是IBC包的memo（不以IBC-relay-test-开头），则认为是relayer的memo
-              if (
-                !extractedMemo.startsWith('IBC-relay-test-') &&
-                extractedMemo.length > 0
-              ) {
-                relayerMemo = this.cleanProtobufArtifacts(extractedMemo)
-                logger.debug(`Found and cleaned relayer memo: "${relayerMemo}"`)
-              } else {
-                // 这是IBC包的memo，保存起来但不作为relayer memo
-                ibcPacketMemo = extractedMemo
-                logger.debug(`Found IBC packet memo: "${ibcPacketMemo}"`)
-              }
-            }
+              logger.info(`Decoded tx body exists: ${!!decodedTx.body}`)
+              logger.info(`Decoded tx body memo: "${decodedTx.body?.memo}"`)
 
-            // 如果没有找到relayer memo，尝试查找其他可能的memo模式
-            if (!relayerMemo) {
-              // 查找可能的relayer标识符模式
-              const relayerPatterns = [
-                // 匹配完整的 "xxx | hermes version (url)" 格式
-                /([a-zA-Z0-9_\s-]+\s*\|\s*hermes\s+[\d.+a-f]+\s*\([^)]+\))/i,
-                // 匹配 "xxx | rly version" 格式
-                /([a-zA-Z0-9_\s-]+\s*\|\s*rly\s+[\d.+a-f-]+)/i,
-                // 匹配任何包含relayer和版本的模式
-                /([a-zA-Z0-9_\s-]+\s*\|\s*(?:hermes|rly|relayer)\s+[\d.+a-f-]+[^\\]*)/i,
-              ]
+              if (decodedTx.body && decodedTx.body.memo) {
+                const memo = decodedTx.body.memo.trim()
+                logger.info(`Extracted memo: "${memo}"`)
+                logger.info(
+                  `Memo starts with IBC-relay-test: ${memo.startsWith(
+                    'IBC-relay-test-'
+                  )}`
+                )
 
-              for (const pattern of relayerPatterns) {
-                const match = txString.match(pattern)
-                if (match && match[1]) {
-                  relayerMemo = this.cleanProtobufArtifacts(match[1])
-                  logger.debug(
-                    `Found relayer memo with pattern: "${relayerMemo}"`
-                  )
-                  break
+                if (memo && !memo.startsWith('IBC-relay-test-')) {
+                  relayerMemo = memo
+                  logger.info(`✅ Found relayer memo: "${relayerMemo}"`)
+                } else {
+                  logger.info(`Memo is IBC test memo, skipping: "${memo}"`)
                 }
+              } else {
+                logger.info('No memo found in decoded transaction body')
               }
+            } catch (decodeError) {
+              logger.error('Failed to decode transaction:', decodeError)
             }
           }
 
+          // 方法2: 使用cosmjs客户端直接查询交易（作为备用）
+          if (!relayerMemo) {
+            try {
+              logger.info('Trying cosmjs client getTx method...')
+              const client = this.osmosisClient.getStargateClient()!
+              const txDetails = await client.getTx(tx.hash)
+
+              if (txDetails) {
+                logger.info('Transaction found via cosmjs client')
+                const { decodeTxRaw } = await import('@cosmjs/proto-signing')
+                const decodedTx = decodeTxRaw(txDetails.tx)
+
+                logger.info(
+                  `Client decoded tx body memo: "${decodedTx.body?.memo}"`
+                )
+
+                if (decodedTx.body && decodedTx.body.memo) {
+                  const memo = decodedTx.body.memo.trim()
+                  if (memo && !memo.startsWith('IBC-relay-test-')) {
+                    relayerMemo = memo
+                    logger.info(
+                      `✅ Found memo from cosmjs client: "${relayerMemo}"`
+                    )
+                  }
+                }
+              } else {
+                logger.info('Transaction not found via cosmjs client')
+              }
+            } catch (clientError) {
+              logger.error(
+                'Failed to get transaction via cosmjs client:',
+                clientError
+              )
+            }
+          }
+
+          logger.info(`=== END MEMO DEBUG, Final result: "${relayerMemo}" ===`)
+
           // 记录调试信息
-          if (!relayerMemo && ibcPacketMemo) {
-            logger.debug('Only found IBC packet memo, no relayer-specific memo')
-          } else if (!relayerMemo) {
-            logger.debug('No memo found in osmosis transaction')
+          if (!relayerMemo) {
+            logger.debug('No relayer memo found in osmosis transaction')
           }
         } catch (memoError) {
           logger.debug(
@@ -1143,23 +1172,45 @@ export class IBCRelayerTest extends BaseTest {
   private cleanProtobufArtifacts(memo: string): string {
     if (!memo) return memo
 
-    // 移除常见的Protobuf字段标识符字符（通常是单个大写字母）
-    // 这些字符通常出现在memo开头，是varint编码的字段标识符
-    const protobufPrefixes = /^[A-Z\x00-\x1F\x7F-\xFF]/
-    if (memo.length > 1 && protobufPrefixes.test(memo[0])) {
-      // 检查第二个字符是否是合理的memo开始（字母、数字或常见符号）
-      if (/[a-zA-Z0-9\s-]/.test(memo[1])) {
-        memo = memo.substring(1)
+    // 更智能的清理策略：
+    // 1. 首先检查是否真的需要清理（如果memo看起来正常，就不要动它）
+    // 2. 只有当检测到明显的二进制污染时才进行清理
+
+    // 检查memo是否看起来正常（以字母、数字或常见符号开头）
+    if (/^[a-zA-Z0-9\[\]().-]/.test(memo)) {
+      logger.debug(`Memo appears clean, no artifacts removal needed: "${memo}"`)
+      return memo.trim()
+    }
+
+    logger.debug(`Memo appears to have artifacts, cleaning: "${memo}"`)
+
+    // 移除开头的二进制控制字符
+    let cleaned = memo
+    while (cleaned.length > 0) {
+      const firstChar = cleaned.charCodeAt(0)
+      // 只删除真正的控制字符：0x00-0x1F 和 0x7F-0xFF
+      // 保留所有可打印ASCII字符 0x20-0x7E
+      if ((firstChar >= 0x00 && firstChar <= 0x1f) || firstChar >= 0x7f) {
+        cleaned = cleaned.substring(1)
+        logger.debug(
+          `Removed control character: 0x${firstChar
+            .toString(16)
+            .padStart(2, '0')}`
+        )
+      } else {
+        break
       }
     }
 
     // 移除末尾的非打印字符和二进制数据
-    memo = memo.replace(/[\x00-\x1F\x7F-\xFF]+.*$/, '')
+    cleaned = cleaned.replace(/[\x00-\x1F\x7F-\xFF]+.*$/, '')
 
-    // 移除转义字符
-    memo = memo.replace(/\\"/g, '"').replace(/\\\\/g, '\\')
+    // 移除常见的转义字符
+    cleaned = cleaned.replace(/\\"/g, '"').replace(/\\\\/g, '\\')
 
-    return memo.trim()
+    const result = cleaned.trim()
+    logger.debug(`Cleaned memo result: "${result}"`)
+    return result
   }
 
   private extractMemoFromTx(tx: any): string | undefined {
