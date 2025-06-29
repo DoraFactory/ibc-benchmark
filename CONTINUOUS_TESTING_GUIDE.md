@@ -1,153 +1,153 @@
-# 连续 IBC 转账测试指南
+# Continuous IBC Transfer Testing Guide
 
-## 概述
+## Overview
 
-新添加的 `continuous-transfer` 命令允许你自动化地连续发送 IBC 转账交易，用于监控 relayer 性能和网络稳定性。
+The newly added `continuous-transfer` command allows you to automatically send continuous IBC transfer transactions for monitoring relayer performance and network stability.
 
-## 基本用法
+## Basic Usage
 
-### 1. 默认设置（每 30 秒一次，无限循环）
+### 1. Default Settings (Every 30 seconds, infinite loop)
 
 ```bash
 npm run dev continuous-transfer
 ```
 
-### 2. 自定义间隔时间（每 60 秒一次）
+### 2. Custom Interval (Every 60 seconds)
 
 ```bash
 npm run dev continuous-transfer -i 60
 ```
 
-### 3. 限制测试次数（每 30 秒一次，最多 10 次）
+### 3. Limit Test Count (Every 30 seconds, maximum 10 times)
 
 ```bash
 npm run dev continuous-transfer -c 10
 ```
 
-### 4. 组合参数（每 2 分钟一次，最多 50 次，遇到错误停止）
+### 4. Combined Parameters (Every 2 minutes, maximum 50 times, stop on error)
 
 ```bash
 npm run dev continuous-transfer -i 120 -c 50 --stop-on-error
 ```
 
-### 5. 启用详细日志
+### 5. Enable Verbose Logging
 
 ```bash
 npm run dev continuous-transfer -v -i 30 -c 20
 ```
 
-## 参数说明
+## Parameter Description
 
-| 参数                       | 说明                   | 默认值 | 示例              |
-| -------------------------- | ---------------------- | ------ | ----------------- |
-| `-i, --interval <seconds>` | 转账间隔时间（秒）     | 30     | `-i 60`           |
-| `-c, --count <number>`     | 最大转账次数（0=无限） | 0      | `-c 100`          |
-| `--stop-on-error`          | 遇到错误时停止         | false  | `--stop-on-error` |
-| `-v, --verbose`            | 启用详细日志           | false  | `-v`              |
+| Parameter                  | Description                     | Default | Example           |
+| -------------------------- | ------------------------------- | ------- | ----------------- |
+| `-i, --interval <seconds>` | Transfer interval (seconds)     | 30      | `-i 60`           |
+| `-c, --count <number>`     | Max transfer count (0=infinite) | 0       | `-c 100`          |
+| `--stop-on-error`          | Stop on error                   | false   | `--stop-on-error` |
+| `-v, --verbose`            | Enable verbose logging          | false   | `-v`              |
 
-## 使用建议
+## Usage Recommendations
 
-### 短期测试（快速验证）
+### Short-term Testing (Quick Verification)
 
 ```bash
-# 每15秒一次，测试10次
+# Every 15 seconds, test 10 times
 npm run dev continuous-transfer -i 15 -c 10 -v
 ```
 
-### 中期监控（1 小时）
+### Medium-term Monitoring (1 hour)
 
 ```bash
-# 每30秒一次，测试120次（1小时）
+# Every 30 seconds, test 120 times (1 hour)
 npm run dev continuous-transfer -i 30 -c 120
 ```
 
-### 长期监控（24 小时）
+### Long-term Monitoring (24 hours)
 
 ```bash
-# 每5分钟一次，测试288次（24小时）
+# Every 5 minutes, test 288 times (24 hours)
 npm run dev continuous-transfer -i 300 -c 288
 ```
 
-### 压力测试（高频率）
+### Stress Testing (High Frequency)
 
 ```bash
-# 每10秒一次，测试100次，遇到错误停止
+# Every 10 seconds, test 100 times, stop on error
 npm run dev continuous-transfer -i 10 -c 100 --stop-on-error -v
 ```
 
-## 输出信息
+## Output Information
 
-测试过程中会显示：
+During testing, the following will be displayed:
 
-- 每次转账的结果（成功/失败）
-- 交易哈希
-- 延迟时间
-- Relayer 信息（名称和签名者地址）
-- 实时统计信息（成功率、错误次数）
+- Result of each transfer (success/failure)
+- Transaction hash
+- Latency time
+- Relayer information (name and signer address)
+- Real-time statistics (success rate, error count)
 
-## 数据记录
+## Data Recording
 
-所有测试数据会自动保存到：
+All test data is automatically saved to:
 
-- `relayer-test-logs.json` - 详细的测试日志
-- `relayer-metrics.json` - 聚合的性能指标
+- `relayer-test-logs.json` - Detailed test logs
+- `relayer-metrics.json` - Aggregated performance metrics
 
-## 优雅停止
+## Graceful Stop
 
-- 按 `Ctrl+C` 一次：完成当前测试后停止
-- 按 `Ctrl+C` 两次：立即强制退出
+- Press `Ctrl+C` once: Stop after completing current test
+- Press `Ctrl+C` twice: Force exit immediately
 
-## 注意事项
+## Notes
 
-1. **最小间隔限制**：为避免网络过载，最小间隔为 5 秒
-2. **余额监控**：确保钱包有足够余额支持连续转账
-3. **网络状况**：在网络不稳定时建议增加间隔时间
-4. **Gas 费用**：连续测试会消耗一定的 gas 费用
-5. **Relayer 状态**：确保目标 relayer 正常运行
+1. **Minimum Interval Limit**: To avoid network overload, minimum interval is 5 seconds
+2. **Balance Monitoring**: Ensure wallet has sufficient balance for continuous transfers
+3. **Network Conditions**: Recommend increasing interval during network instability
+4. **Gas Fees**: Continuous testing will consume certain gas fees
+5. **Relayer Status**: Ensure target relayer is running normally
 
-## 常见使用场景
+## Common Use Cases
 
-### 1. Relayer 性能基准测试
+### 1. Relayer Performance Benchmarking
 
 ```bash
-# 测试1小时，每分钟一次
+# Test for 1 hour, once per minute
 npm run dev continuous-transfer -i 60 -c 60 -v
 ```
 
-### 2. 网络稳定性监控
+### 2. Network Stability Monitoring
 
 ```bash
-# 长期监控，每5分钟一次
+# Long-term monitoring, every 5 minutes
 npm run dev continuous-transfer -i 300
 ```
 
-### 3. 错误诊断
+### 3. Error Diagnosis
 
 ```bash
-# 高频测试，遇到错误立即停止
+# High-frequency testing, stop immediately on error
 npm run dev continuous-transfer -i 10 --stop-on-error -v
 ```
 
-### 4. 数据收集
+### 4. Data Collection
 
 ```bash
-# 收集24小时数据，每10分钟一次
+# Collect 24-hour data, every 10 minutes
 npm run dev continuous-transfer -i 600 -c 144
 ```
 
-## 分析结果
+## Analyze Results
 
-测试完成后，可以使用以下命令分析结果：
+After testing is complete, you can analyze results using the following commands:
 
 ```bash
-# 查看最近的测试日志
+# View recent test logs
 npm run dev show-logs --count 50
 
-# 生成详细报告
+# Generate detailed report
 npm run dev generate-report
 ```
 
-## 示例输出
+## Example Output
 
 ```
 🔄 Starting continuous IBC transfer tests...

@@ -1,39 +1,39 @@
-# IBC Relayer 识别和测试系统
+# IBC Relayer Identification and Testing System
 
-## 📋 实现状态
+## 📋 Implementation Status
 
-**当前状态**: 系统现在使用**真实数据**来识别处理 IBC 交易的 relayer 地址。
+**Current Status**: The system now uses **real data** to identify relayer addresses that process IBC transactions.
 
-### 🔧 真实数据获取流程
+### 🔧 Real Data Acquisition Process
 
-1. **发送 IBC 转账** - 在 vota-bobtail 上发送真实的 IBC transfer
-2. **提取 Packet Sequence** - 从交易日志中提取 packet sequence
-3. **查询目标链接收** - 在 osmosis-testnet 上查询对应的 `MsgRecvPacket` 交易
-4. **识别 Relayer 地址** - 从交易签名者中提取真实 relayer 地址
-5. **验证 Memo 标识** - 检查 memo 中是否包含 `relayed-by:<moniker>` 标识
+1. **Send IBC Transfer** - Send real IBC transfer on vota-bobtail
+2. **Extract Packet Sequence** - Extract packet sequence from transaction logs
+3. **Query Target Chain Reception** - Query corresponding `MsgRecvPacket` transaction on osmosis-testnet
+4. **Identify Relayer Address** - Extract real relayer address from transaction signers
+5. **Verify Memo Identifier** - Check if memo contains `relayed-by:<moniker>` identifier
 
-### 🧪 实际查询示例
+### 🧪 Actual Query Example
 
 ```typescript
-// 真实的 acknowledgement 查询
+// Real acknowledgement query
 const ackInfo = await ibcHelper.queryPacketAcknowledgement(
   'transfer',
   'channel-0',
   sequence
 )
 
-console.log('Relayer 地址:', ackInfo.relayerAddress)
-console.log('目标链交易:', ackInfo.targetTxHash)
+console.log('Relayer Address:', ackInfo.relayerAddress)
+console.log('Target Chain Transaction:', ackInfo.targetTxHash)
 ```
 
-## 🛠 真正的 Relayer 识别方案
+## 🛠 Real Relayer Identification Solution
 
-### 方案 1: 查询目标链交易事件
+### Solution 1: Query Target Chain Transaction Events
 
-IBC relayer 在目标链上会产生 `MsgRecvPacket` 交易，我们可以通过以下方式识别：
+IBC relayers produce `MsgRecvPacket` transactions on the target chain, which we can identify through:
 
 ```typescript
-// 在 osmosis-testnet 上查询 recv_packet 事件
+// Query recv_packet events on osmosis-testnet
 const events = await targetClient.searchTx({
   tags: [
     { key: 'recv_packet.packet_src_channel', value: 'channel-0' },
@@ -44,64 +44,64 @@ const events = await targetClient.searchTx({
 const relayerAddress = events[0].tx.body.messages[0].signer
 ```
 
-### 方案 2: 通过交易签名识别
+### Solution 2: Identify Through Transaction Signatures
 
 ```typescript
-// 获取交易详情，提取签名者信息
+// Get transaction details, extract signer information
 const tx = await client.getTx(txHash)
 const relayerAddress = tx.tx.authInfo.signerInfos[0].address
 ```
 
-### 方案 3: 通过消息事件识别
+### Solution 3: Identify Through Message Events
 
 ```typescript
-// 查看交易事件中的 message.sender
+// Check message.sender in transaction events
 const messageEvent = tx.events.find((e) => e.type === 'message')
 const relayerAddress = messageEvent.attributes.find(
   (a) => a.key === 'sender'
 )?.value
 ```
 
-## 🏁 完整流程示例
+## 🏁 Complete Process Example
 
 ```typescript
-// 从交易日志中提取
+// Extract from transaction logs
 const packetSequence = extractFromLog(result.rawLog, 'packet_sequence')
 const sourceChannel = 'channel-0'
 
-// 验证 memo 中的 validator moniker
+// Verify validator moniker in memo
 const memo = 'relayed-by:validator1'
 const moniker = memo.replace('relayed-by:', '')
 
-// 查询真实的 acknowledgement 信息
+// Query real acknowledgement information
 const ackInfo = await ibcHelper.queryPacketAcknowledgement(
   'transfer',
   'channel-0',
   sequence
 )
 
-console.log('Relayer 地址:', ackInfo.relayerAddress)
-console.log('目标链交易:', ackInfo.targetTxHash)
+console.log('Relayer Address:', ackInfo.relayerAddress)
+console.log('Target Chain Transaction:', ackInfo.targetTxHash)
 ```
 
-## 🎯 系统能力总结
+## 🎯 System Capabilities Summary
 
-### ✅ 已实现功能
+### ✅ Implemented Features
 
-1. **真实 IBC 转账测试** - 发送真实的 IBC 转账
-2. **Packet Acknowledgement 查询** - 查询真实的确认状态
-3. **目标链交易查询** - 在 osmosis 上查找 recv_packet 交易
-4. **Relayer 地址识别** - 从交易签名者中提取真实地址
-5. **Performance 指标计算** - 基于真实测试数据计算性能指标
-6. **持久化存储** - 保存真实测试日志和指标
-7. **报告生成** - 生成基于真实数据的 HTML/Markdown 报告
+1. **Real IBC Transfer Testing** - Send real IBC transfers
+2. **Packet Acknowledgement Query** - Query real acknowledgement status
+3. **Target Chain Transaction Query** - Find recv_packet transactions on osmosis
+4. **Relayer Address Identification** - Extract real addresses from transaction signers
+5. **Performance Metrics Calculation** - Calculate performance metrics based on real test data
+6. **Persistent Storage** - Save real test logs and metrics
+7. **Report Generation** - Generate HTML/Markdown reports based on real data
 
-### 🔄 数据流程
+### 🔄 Data Flow
 
-1. **测试执行** → 发送真实 IBC 转账
-2. **数据收集** → 查询真实 acknowledgement 和目标链交易
-3. **地址识别** → 从交易中提取真实 relayer 地址
-4. **性能分析** → 计算真实的延迟、成功率等指标
-5. **报告生成** → 生成基于真实数据的测试报告
+1. **Test Execution** → Send real IBC transfers
+2. **Data Collection** → Query real acknowledgements and target chain transactions
+3. **Address Identification** → Extract real relayer addresses from transactions
+4. **Performance Analysis** → Calculate real latency, success rates, and other metrics
+5. **Report Generation** → Generate test reports based on real data
 
-**当前状态**: 系统完全使用真实区块链数据，能够准确识别和评估 validator 的 IBC relayer 性能。
+**Current Status**: The system fully uses real blockchain data and can accurately identify and evaluate validator IBC relayer performance.

@@ -1,36 +1,36 @@
-# 🧪 IBC Relayer 测试框架
+# 🧪 IBC Relayer Testing Framework
 
-一个专为 vota-bobtail 激励测试网设计的 IBC Relayer 测试和监控系统。
+An IBC Relayer testing and monitoring system specifically designed for the vota-bobtail incentivized testnet.
 
-## 📋 功能特性
+## 📋 Features
 
-- ✅ **基础连通性测试** - 验证 IBC 连接和通道状态
-- 📊 **数据包传输测试** - 测试 IBC 数据包的发送和接收
-- ⚡ **性能测试** - 评估 relayer 的延迟和吞吐量
-- 🎯 **IBC Relayer 测试** - 专门测试 validator 的 relayer 服务
-- 📈 **批量压力测试** - 并发测试 relayer 处理能力
-- ⏱️ **稳定性测试** - 长期监控 relayer 服务稳定性
-- 🔍 **身份验证** - 验证 relayer 身份和 validator 匹配
-- 📊 **详细报告** - 生成 HTML 和 Markdown 格式的测试报告
-- 🔄 **连续监控** - 支持定时自动测试
+- ✅ **Basic Connectivity Testing** - Verify IBC connection and channel status
+- 📊 **Packet Transmission Testing** - Test IBC packet sending and receiving
+- ⚡ **Performance Testing** - Evaluate relayer latency and throughput
+- 🎯 **IBC Relayer Testing** - Specifically test validator relayer services
+- 📈 **Batch Stress Testing** - Concurrent testing of relayer processing capacity
+- ⏱️ **Stability Testing** - Long-term monitoring of relayer service stability
+- 🔍 **Identity Verification** - Verify relayer identity and validator matching
+- 📊 **Detailed Reports** - Generate HTML and Markdown format test reports
+- 🔄 **Continuous Monitoring** - Support scheduled automatic testing
 
-## 🚀 快速开始
+## 🚀 Quick Start
 
-### 1. 安装依赖
+### 1. Install Dependencies
 
 ```bash
 npm install
 ```
 
-### 2. 配置环境变量
+### 2. Configure Environment Variables
 
-复制环境变量示例文件：
+Copy the environment variable example file:
 
 ```bash
 cp env.example .env
 ```
 
-编辑 `.env` 文件，填入正确的配置：
+Edit the `.env` file and fill in the correct configuration:
 
 ```bash
 # Chain A (vota-bobtail)
@@ -43,190 +43,190 @@ CHAIN_B_RPC=https://rpc.testnet.osmosis.zone:443
 CHAIN_B_ID=osmo-test-5
 CHAIN_B_PREFIX=osmo
 
-# IBC Configuration - 必须填入真实的connection和channel ID
-CONNECTION_ID=connection-xxx  # 查询真实的connection ID
-CHANNEL_ID=channel-xxx       # 查询真实的channel ID
+# IBC Configuration - Must fill in real connection and channel IDs
+CONNECTION_ID=connection-xxx  # Query real connection ID
+CHANNEL_ID=channel-xxx       # Query real channel ID
 
 # Test Configuration
 TEST_MNEMONIC=your wallet mnemonic here
 OSMOSIS_RECEIVE_ADDRESS=osmo1...your_osmosis_address...
 ```
 
-### 🔍 如何获取真实的 Connection ID 和 Channel ID
+### 🔍 How to Get Real Connection ID and Channel ID
 
-**方法 1: 使用命令行查询**
+**Method 1: Use Command Line Query**
 
 ```bash
-# 查询vota-bobtail上的所有connections
+# Query all connections on vota-bobtail
 dorad query ibc connection connections --node https://vota-bobtail-rpc.dorafactory.org:443
 
-# 查询vota-bobtail上的所有channels
+# Query all channels on vota-bobtail
 dorad query ibc channel channels --node https://vota-bobtail-rpc.dorafactory.org:443
 
-# 查找连接到osmosis的channel
+# Find channels connected to osmosis
 dorad query ibc channel channels --node https://vota-bobtail-rpc.dorafactory.org:443 | grep -A 10 -B 10 "osmo"
 ```
 
-**方法 2: 联系项目团队**
+**Method 2: Contact Project Team**
 
-- 联系 vota-bobtail 项目团队获取正确的 IBC 配置
-- 查看项目文档或 Discord/Telegram 群组
+- Contact the vota-bobtail project team for correct IBC configuration
+- Check project documentation or Discord/Telegram groups
 
-**方法 3: 使用区块浏览器**
+**Method 3: Use Block Explorer**
 
-- 在 vota-bobtail 区块浏览器中搜索 IBC 相关交易
-- 查看成功的 IBC 转账交易来获取正确的 channel ID
+- Search for IBC-related transactions in the vota-bobtail block explorer
+- View successful IBC transfer transactions to get the correct channel ID
 
-### 3. 构建项目
+### 3. Build Project
 
 ```bash
 npm run build
 ```
 
-## 🎯 IBC Relayer 测试
+## 🎯 IBC Relayer Testing
 
-### 完整 Relayer 测试
+### Complete Relayer Testing
 
-运行包含基础测试、批量测试和稳定性测试的完整测试套件：
+Run a complete test suite including basic tests, batch tests, and stability tests:
 
 ```bash
 npm run dev relayer-test
-# 或者
+# or
 npm start relayer-test
 ```
 
-### 单次转账测试
+### Single Transfer Test
 
-快速验证 relayer 是否正常工作：
+Quick verification that the relayer is working properly:
 
 ```bash
 npm run dev single-transfer
 ```
 
-### 连续监控模式
+### Continuous Monitoring Mode
 
-启动连续监控，每小时自动测试一次：
+Start continuous monitoring with automatic testing every hour:
 
 ```bash
 npm run dev relayer-test --continuous
 ```
 
-自定义测试间隔（每 2 小时测试一次）：
+Custom test interval (test every 2 hours):
 
 ```bash
 npm run dev relayer-test --continuous --interval 2
 ```
 
-## 📊 查看结果
+## 📊 View Results
 
-### 显示最近的测试日志
+### Show Recent Test Logs
 
 ```bash
 npm run dev show-logs
 ```
 
-显示最近 20 条日志：
+Show the last 20 logs:
 
 ```bash
 npm run dev show-logs --count 20
 ```
 
-### 生成测试报告
+### Generate Test Report
 
 ```bash
 npm run dev generate-report
 ```
 
-这将生成：
+This will generate:
 
-- `ibc-relayer-report.html` - 可视化 HTML 报告
-- `ibc-relayer-report.md` - Markdown 格式报告
+- `ibc-relayer-report.html` - Visual HTML report
+- `ibc-relayer-report.md` - Markdown format report
 
-## 🔧 其他命令
+## 🔧 Other Commands
 
-### 健康检查
+### Health Check
 
-检查链的连接状态：
+Check chain connection status:
 
 ```bash
 npm run dev health
 ```
 
-### 查看配置
+### View Configuration
 
-显示当前配置：
+Display current configuration:
 
 ```bash
 npm run dev config
 ```
 
-### 运行特定测试
+### Run Specific Tests
 
 ```bash
-# 连接稳定性测试
+# Connection stability test
 npm run dev run connection
 
-# 数据包传输测试
+# Packet transmission test
 npm run dev run packet
 
-# 性能测试
+# Performance test
 npm run dev run performance
 
-# IBC Relayer 测试
+# IBC Relayer test
 npm run dev run relayer
 ```
 
-## 📋 测试流程说明
+## 📋 Test Process Description
 
-根据 [测试规则文档](test_rules.md)，IBC Relayer 测试包含以下步骤：
+According to the [Test Rules Document](test_rules.md), IBC Relayer testing includes the following steps:
 
-### 1. 基础测试流程
+### 1. Basic Test Process
 
-1. **检查 Channel 状态** - 验证 IBC channel 是否为 OPEN 状态
-2. **发起 IBC Transfer** - 向 osmosis-testnet 发送测试交易
-3. **等待 Acknowledgement** - 监控 packet acknowledgement
-4. **验证目标链交易** - 在 osmosis 上确认交易接收
-5. **记录测试日志** - 保存详细的测试结果
+1. **Check Channel Status** - Verify that the IBC channel is in OPEN state
+2. **Initiate IBC Transfer** - Send test transaction to osmosis-testnet
+3. **Wait for Acknowledgement** - Monitor packet acknowledgement
+4. **Verify Target Chain Transaction** - Confirm transaction receipt on osmosis
+5. **Record Test Logs** - Save detailed test results
 
-### 2. 测试数据记录
+### 2. Test Data Recording
 
-每次测试会记录以下信息：
+Each test records the following information:
 
-| 字段            | 说明                       |
-| --------------- | -------------------------- |
-| 测试时间        | 发起交易的时间戳           |
-| 交易 Hash       | vota-bobtail 上的交易 hash |
-| Packet 序列     | IBC packet 序列号          |
-| 是否成功        | true/false                 |
-| 延迟(秒)        | 从发送到收到 ack 的时间    |
-| 目标链交易 Hash | osmosis 上的接收交易 hash  |
-| Relayer Signer  | 实际 relay 的地址          |
-| Memo 标识       | memo 中的 moniker          |
-| 错误信息        | 失败时的具体错误           |
+| Field                | Description                                  |
+| -------------------- | -------------------------------------------- |
+| Test Time            | Timestamp when the transaction was initiated |
+| Transaction Hash     | Transaction hash on vota-bobtail             |
+| Packet Sequence      | IBC packet sequence number                   |
+| Success Status       | true/false                                   |
+| Latency (seconds)    | Time from send to acknowledgement receipt    |
+| Target Chain Tx Hash | Receive transaction hash on osmosis          |
+| Relayer Signer       | Actual relay address                         |
+| Memo Identifier      | Moniker in memo                              |
+| Error Message        | Specific error when failed                   |
 
-### 3. 性能指标
+### 3. Performance Metrics
 
-系统会为每个 validator 计算以下指标：
+The system calculates the following metrics for each validator:
 
-- **成功率** - 成功 relay 的交易比例
-- **平均延迟** - relay 交易的平均时间
-- **稳定性** - 连续失败次数和正常运行时间
-- **活跃度** - 最后活跃时间
+- **Success Rate** - Proportion of successfully relayed transactions
+- **Average Latency** - Average time for relaying transactions
+- **Stability** - Consecutive failure count and uptime
+- **Activity** - Last active time
 
-## 🎨 报告示例
+## 🎨 Report Example
 
-测试报告包含：
+Test reports include:
 
-- 📊 **总体统计** - 成功率、平均延迟等关键指标
-- 🏆 **Validator 排名** - 按性能排名的 validator 列表
-- 📝 **测试日志** - 最近的测试记录
-- 💡 **改进建议** - 基于测试结果的优化建议
+- 📊 **Overall Statistics** - Key metrics like success rate, average latency
+- 🏆 **Validator Rankings** - Performance-ranked validator list
+- 📝 **Test Logs** - Recent test records
+- 💡 **Improvement Suggestions** - Optimization recommendations based on test results
 
-## ⚙️ 高级配置
+## ⚙️ Advanced Configuration
 
-### Validator 配置
+### Validator Configuration
 
-在环境变量中配置参与测试的 validators：
+Configure validators participating in tests in environment variables:
 
 ```bash
 VALIDATORS_CONFIG='[
@@ -239,28 +239,28 @@ VALIDATORS_CONFIG='[
 ]'
 ```
 
-> 💡 **提示**: `relayerAddresses` 可以留空，系统会自动从实际的 IBC 交易中识别真实的 relayer 地址。
+> 💡 **Tip**: `relayerAddresses` can be left empty, the system will automatically identify real relayer addresses from actual IBC transactions.
 
-### 测试参数调整
+### Test Parameter Adjustment
 
 ```bash
-# 测试金额
+# Test amount
 RELAYER_TEST_AMOUNT=1
 
-# 测试代币
+# Test token
 RELAYER_TEST_DENOM=stake
 
-# 超时时间（秒）
+# Timeout (seconds)
 RELAYER_TIMEOUT_SECONDS=60
 
-# 批量测试大小
+# Batch test size
 RELAYER_BATCH_SIZE=10
 ```
 
-## 🤝 贡献
+## 🤝 Contributing
 
-欢迎提交 issue 和 pull request！
+Issues and pull requests are welcome!
 
-## �� 许可证
+## 📄 License
 
 MIT License
