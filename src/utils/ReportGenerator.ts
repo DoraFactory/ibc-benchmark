@@ -19,7 +19,7 @@ export class ReportGenerator {
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>IBC Relayer 测试报告</title>
+    <title>IBC Relayer 测试报告 | IBC Relayer Test Report</title>
     <style>
         body {
             font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
@@ -35,11 +35,36 @@ export class ReportGenerator {
             box-shadow: 0 2px 10px rgba(0,0,0,0.1);
             padding: 30px;
         }
+        .language-toggle {
+            position: absolute;
+            top: 20px;
+            right: 20px;
+            z-index: 1000;
+        }
+        .language-button {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border: none;
+            padding: 8px 16px;
+            border-radius: 20px;
+            cursor: pointer;
+            font-size: 14px;
+            margin: 0 5px;
+            transition: all 0.3s ease;
+        }
+        .language-button:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(0,0,0,0.2);
+        }
+        .language-button.active {
+            background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%);
+        }
         .header {
             text-align: center;
             border-bottom: 2px solid #e1e5e9;
             padding-bottom: 20px;
             margin-bottom: 30px;
+            position: relative;
         }
         .header h1 {
             color: #2d3748;
@@ -169,59 +194,71 @@ export class ReportGenerator {
             border-top: 1px solid #e2e8f0;
             color: #718096;
         }
+        .hidden {
+            display: none;
+        }
     </style>
 </head>
 <body>
+    <div class="language-toggle">
+        <button class="language-button active" onclick="switchLanguage('zh')" id="zh-btn">中文</button>
+        <button class="language-button" onclick="switchLanguage('en')" id="en-btn">English</button>
+    </div>
+    
     <div class="container">
         <div class="header">
-            <h1>🧪 IBC Relayer 测试报告</h1>
-            <div class="subtitle">vota-bobtail 激励测试网 - 生成时间: ${new Date().toLocaleString(
+            <h1 data-zh="🧪 IBC Relayer 测试报告" data-en="🧪 IBC Relayer Test Report">🧪 IBC Relayer 测试报告</h1>
+            <div class="subtitle" data-zh="vota-bobtail 激励测试网 - 生成时间: ${new Date().toLocaleString(
               'zh-CN'
-            )}</div>
+            )}" data-en="vota-bobtail Incentive Testnet - Generated at: ${new Date().toLocaleString(
+      'en-US'
+    )}">vota-bobtail 激励测试网 - 生成时间: ${new Date().toLocaleString(
+      'zh-CN'
+    )}</div>
         </div>
 
         <div class="summary">
             <div class="summary-card info">
-                <h3>总测试数</h3>
+                <h3 data-zh="总测试数" data-en="Total Tests">总测试数</h3>
                 <div class="value">${this.logs.length}</div>
             </div>
             <div class="summary-card success">
-                <h3>成功率</h3>
+                <h3 data-zh="成功率" data-en="Success Rate">成功率</h3>
                 <div class="value">${this.calculateOverallSuccessRate().toFixed(
                   1
                 )}%</div>
             </div>
             <div class="summary-card warning">
-                <h3>平均延迟</h3>
+                <h3 data-zh="平均延迟" data-en="Average Latency">平均延迟</h3>
                 <div class="value">${this.calculateAverageLatency().toFixed(
                   0
                 )}ms</div>
             </div>
             <div class="summary-card">
-                <h3>活跃 Validators</h3>
+                <h3 data-zh="活跃 Validators" data-en="Active Validators">活跃 Validators</h3>
                 <div class="value">${this.metrics.length}</div>
             </div>
         </div>
 
         <div class="section">
-            <h2>📊 Validator 性能排名</h2>
+            <h2 data-zh="📊 Validator 性能排名" data-en="📊 Validator Performance Ranking">📊 Validator 性能排名</h2>
             <div class="validator-metrics">
                 ${this.generateValidatorCards()}
             </div>
         </div>
 
         <div class="section">
-            <h2>📝 最近测试日志</h2>
+            <h2 data-zh="📝 最近测试日志" data-en="📝 Recent Test Logs">📝 最近测试日志</h2>
             <table>
                 <thead>
                     <tr>
-                        <th>测试时间</th>
-                        <th>交易Hash</th>
-                        <th>Packet序列</th>
-                        <th>状态</th>
-                        <th>延迟(ms)</th>
-                        <th>Relayer标识</th>
-                        <th>Signer地址</th>
+                        <th data-zh="测试时间" data-en="Test Time">测试时间</th>
+                        <th data-zh="交易Hash" data-en="Transaction Hash">交易Hash</th>
+                        <th data-zh="Packet序列" data-en="Packet Sequence">Packet序列</th>
+                        <th data-zh="状态" data-en="Status">状态</th>
+                        <th data-zh="延迟(ms)" data-en="Latency(ms)">延迟(ms)</th>
+                        <th data-zh="Relayer标识" data-en="Relayer Identifier">Relayer标识</th>
+                        <th data-zh="Signer地址" data-en="Signer Address">Signer地址</th>
                     </tr>
                 </thead>
                 <tbody>
@@ -231,18 +268,18 @@ export class ReportGenerator {
         </div>
 
         <div class="section">
-            <h2>📈 性能统计</h2>
+            <h2 data-zh="📈 性能统计" data-en="📈 Performance Statistics">📈 性能统计</h2>
             <table>
                 <thead>
                     <tr>
-                        <th>Validator</th>
-                        <th>总测试数</th>
-                        <th>成功数</th>
-                        <th>成功率</th>
-                        <th>平均延迟</th>
-                        <th>最大延迟</th>
-                        <th>连续失败</th>
-                        <th>状态</th>
+                        <th data-zh="Validator" data-en="Validator">Validator</th>
+                        <th data-zh="总测试数" data-en="Total Tests">总测试数</th>
+                        <th data-zh="成功数" data-en="Successful">成功数</th>
+                        <th data-zh="成功率" data-en="Success Rate">成功率</th>
+                        <th data-zh="平均延迟" data-en="Average Latency">平均延迟</th>
+                        <th data-zh="最大延迟" data-en="Max Latency">最大延迟</th>
+                        <th data-zh="连续失败" data-en="Consecutive Failures">连续失败</th>
+                        <th data-zh="状态" data-en="Status">状态</th>
                     </tr>
                 </thead>
                 <tbody>
@@ -252,9 +289,45 @@ export class ReportGenerator {
         </div>
 
         <div class="footer">
-            <p>此报告由 IBC Relayer 测试系统自动生成</p>
+            <p data-zh="此报告由 IBC Relayer 测试系统自动生成" data-en="This report is automatically generated by the IBC Relayer testing system">此报告由 IBC Relayer 测试系统自动生成</p>
         </div>
     </div>
+
+    <script>
+        let currentLanguage = 'zh';
+
+        function switchLanguage(lang) {
+            currentLanguage = lang;
+            localStorage.setItem('reportLanguage', lang);
+            
+            // Update button states
+            document.getElementById('zh-btn').classList.toggle('active', lang === 'zh');
+            document.getElementById('en-btn').classList.toggle('active', lang === 'en');
+            
+            // Update all elements with data-zh and data-en attributes
+            const elements = document.querySelectorAll('[data-zh][data-en]');
+            elements.forEach(element => {
+                if (lang === 'zh') {
+                    element.textContent = element.getAttribute('data-zh');
+                } else {
+                    element.textContent = element.getAttribute('data-en');
+                }
+            });
+
+            // Update document language
+            document.documentElement.lang = lang === 'zh' ? 'zh-CN' : 'en-US';
+            
+            // Update page title
+            document.title = lang === 'zh' ? 'IBC Relayer 测试报告' : 'IBC Relayer Test Report';
+        }
+
+        // Initialize page
+        document.addEventListener('DOMContentLoaded', function() {
+            // Set default language from browser or saved preference
+            const savedLang = localStorage.getItem('reportLanguage') || 'zh';
+            switchLanguage(savedLang);
+        });
+    </script>
 </body>
 </html>
     `
@@ -371,7 +444,7 @@ ${this.generateRecommendations()}
         <div class="validator-card">
             <h4>🏷️ ${metric.validatorMoniker}</h4>
             <div class="metric-row">
-                <span class="metric-label">成功率</span>
+                <span class="metric-label" data-zh="成功率" data-en="Success Rate">成功率</span>
                 <span class="metric-value">${metric.successRate.toFixed(
                   1
                 )}%</span>
@@ -382,21 +455,21 @@ ${this.generateRecommendations()}
         }%"></div>
             </div>
             <div class="metric-row">
-                <span class="metric-label">总测试数</span>
+                <span class="metric-label" data-zh="总测试数" data-en="Total Tests">总测试数</span>
                 <span class="metric-value">${metric.totalTests}</span>
             </div>
             <div class="metric-row">
-                <span class="metric-label">平均延迟</span>
+                <span class="metric-label" data-zh="平均延迟" data-en="Average Latency">平均延迟</span>
                 <span class="metric-value">${metric.averageLatency.toFixed(
                   0
                 )}ms</span>
             </div>
             <div class="metric-row">
-                <span class="metric-label">连续失败次数</span>
+                <span class="metric-label" data-zh="连续失败次数" data-en="Consecutive Failures">连续失败次数</span>
                 <span class="metric-value">${metric.continuousFailures}</span>
             </div>
             <div class="metric-row">
-                <span class="metric-label">最后活跃</span>
+                <span class="metric-label" data-zh="最后活跃" data-en="Last Active">最后活跃</span>
                 <span class="metric-value">${
                   metric.lastActiveTime
                     ? metric.lastActiveTime.toLocaleString('zh-CN')
@@ -415,7 +488,8 @@ ${this.generateRecommendations()}
       .reverse()
       .map((log) => {
         const statusClass = log.success ? 'status-success' : 'status-failed'
-        const statusText = log.success ? '✅ 成功' : '❌ 失败'
+        const statusTextZh = log.success ? '✅ 成功' : '❌ 失败'
+        const statusTextEn = log.success ? '✅ Success' : '❌ Failed'
         const latencyClass =
           log.latency < 5000
             ? 'latency-excellent'
@@ -431,7 +505,7 @@ ${this.generateRecommendations()}
               16
             )}...</td>
             <td>${log.packetSequence}</td>
-            <td class="${statusClass}">${statusText}</td>
+            <td class="${statusClass}" data-zh="${statusTextZh}" data-en="${statusTextEn}">${statusTextZh}</td>
             <td class="${latencyClass}">${log.latency}</td>
             <td>${
               log.memoIdentifier?.replace('relayed-by:', '') || 'Unknown'
@@ -455,12 +529,18 @@ ${this.generateRecommendations()}
             : metric.successRate >= 70
             ? '🟡'
             : '🔴'
-        const statusText =
+        const statusTextZh =
           metric.successRate >= 90
             ? '优秀'
             : metric.successRate >= 70
             ? '良好'
             : '需改进'
+        const statusTextEn =
+          metric.successRate >= 90
+            ? 'Excellent'
+            : metric.successRate >= 70
+            ? 'Good'
+            : 'Needs Improvement'
 
         return `
         <tr>
@@ -471,7 +551,7 @@ ${this.generateRecommendations()}
             <td>${metric.averageLatency.toFixed(0)}ms</td>
             <td>${metric.maxLatency.toFixed(0)}ms</td>
             <td>${metric.continuousFailures}</td>
-            <td>${statusEmoji} ${statusText}</td>
+            <td data-zh="${statusEmoji} ${statusTextZh}" data-en="${statusEmoji} ${statusTextEn}">${statusEmoji} ${statusTextZh}</td>
         </tr>
         `
       })

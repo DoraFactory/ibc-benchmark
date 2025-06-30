@@ -89,9 +89,12 @@ setup_log_directory() {
     fi
 }
 
-# 获取PID文件路径
+# 获取PID文件路径 - 基于当前目录生成唯一名称
 get_pid_file() {
-    echo "${LOG_DIR}/${SCRIPT_NAME}.pid"
+    # 获取当前目录的绝对路径并生成哈希值作为唯一标识
+    local current_dir=$(pwd)
+    local dir_hash=$(echo "$current_dir" | shasum -a 256 | cut -c1-8)
+    echo "${LOG_DIR}/${SCRIPT_NAME}-${dir_hash}.pid"
 }
 
 # 获取日志文件路径
@@ -107,34 +110,30 @@ get_error_log_file() {
 # 检查是否已在运行
 check_running() {
     local pid_file=$(get_pid_file)
+    local current_dir=$(pwd)
     
-    # 首先检查是否有continuous-transfer进程在运行
-    local running_pids=$(ps aux | grep "continuous-transfer" | grep -v grep | awk '{print $2}')
-    
-    if [ -n "$running_pids" ]; then
-        # 如果有进程在运行，检查PID文件是否匹配
-        if [ -f "$pid_file" ]; then
-            local stored_pid=$(cat "$pid_file")
-            # 检查存储的PID是否在运行的进程中
-            if echo "$running_pids" | grep -q "^${stored_pid}$"; then
-                return 0
-            else
-                # PID文件不匹配，更新PID文件为第一个运行的进程
-                echo "$running_pids" | head -n1 > "$pid_file"
-                return 0
+    # 检查PID文件是否存在并且进程是否在运行
+    if [ -f "$pid_file" ]; then
+        local stored_pid=$(cat "$pid_file")
+        
+        # 检查进程是否存在
+        if ps -p "$stored_pid" > /dev/null 2>&1; then
+            # 进一步检查进程是否是在当前目录启动的continuous-transfer
+            local process_info=$(ps -p "$stored_pid" -o args= 2>/dev/null)
+            if echo "$process_info" | grep -q "continuous-transfer"; then
+                # 检查进程工作目录是否匹配当前目录
+                local process_cwd=$(lsof -p "$stored_pid" 2>/dev/null | awk '$4=="cwd" {print $9}' | head -n1)
+                if [ "$process_cwd" = "$current_dir" ] || [ -z "$process_cwd" ]; then
+                    return 0  # 进程存在且在当前目录
+                fi
             fi
-        else
-            # 没有PID文件但有进程在运行，创建PID文件
-            echo "$running_pids" | head -n1 > "$pid_file"
-            return 0
         fi
-    else
-        # 没有进程在运行，清理PID文件
-        if [ -f "$pid_file" ]; then
-            rm -f "$pid_file"
-        fi
-        return 1
+        
+        # PID文件存在但进程不存在或不匹配，清理PID文件
+        rm -f "$pid_file"
     fi
+    
+    return 1  # 没有在当前目录运行的进程
 }
 
 # 显示运行状态
@@ -164,48 +163,36 @@ show_status() {
 # 停止后台进程
 stop_process() {
     local pid_file=$(get_pid_file)
+    local current_dir=$(pwd)
     
-    # 查找所有continuous-transfer相关进程
-    local running_pids=$(ps aux | grep "continuous-transfer" | grep -v grep | awk '{print $2}')
-    
-    if [ -n "$running_pids" ]; then
-        log "发现以下IBC连续测试进程:"
-        ps aux | grep "continuous-transfer" | grep -v grep | while read line; do
-            echo "  $line"
-        done
+    if check_running; then
+        local stored_pid=$(cat "$pid_file")
         
-        log "停止所有IBC连续测试进程..."
+        log "发现当前目录的IBC连续测试进程:"
+        ps -p "$stored_pid" 2>/dev/null || echo "  进程信息获取失败"
         
-        # 尝试优雅停止所有进程
-        for pid in $running_pids; do
-            log "停止进程 PID: $pid"
-            kill "$pid" 2>/dev/null || true
-        done
+        log "停止当前目录的IBC连续测试进程 (PID: $stored_pid)..."
+        
+        # 尝试优雅停止进程
+        kill "$stored_pid" 2>/dev/null || true
         
         # 等待进程结束
         local count=0
-        while [ $count -lt 10 ]; do
-            local still_running=$(ps aux | grep "continuous-transfer" | grep -v grep | awk '{print $2}')
-            if [ -z "$still_running" ]; then
-                break
-            fi
+        while ps -p "$stored_pid" > /dev/null 2>&1 && [ $count -lt 10 ]; do
             sleep 1
             ((count++))
         done
         
-        # 检查是否还有进程在运行，强制停止
-        local still_running=$(ps aux | grep "continuous-transfer" | grep -v grep | awk '{print $2}')
-        if [ -n "$still_running" ]; then
-            log_warn "强制停止剩余进程..."
-            for pid in $still_running; do
-                kill -9 "$pid" 2>/dev/null || true
-            done
+        # 如果还在运行，强制停止
+        if ps -p "$stored_pid" > /dev/null 2>&1; then
+            log_warn "强制停止进程..."
+            kill -9 "$stored_pid" 2>/dev/null || true
         fi
         
         rm -f "$pid_file"
-        log "✅ 所有IBC连续测试进程已停止"
+        log "✅ 当前目录的IBC连续测试进程已停止"
     else
-        log_info "IBC连续测试未运行"
+        log_info "当前目录没有运行IBC连续测试"
     fi
 }
 
