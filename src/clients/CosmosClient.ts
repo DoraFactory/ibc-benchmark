@@ -1,7 +1,7 @@
 import { StargateClient, SigningStargateClient } from '@cosmjs/stargate'
 import { DirectSecp256k1HdWallet } from '@cosmjs/proto-signing'
 import { Tendermint34Client } from '@cosmjs/tendermint-rpc'
-import { ChainConfig } from '../types'
+import { ChainConfig, GasConfig } from '../types'
 import { logger } from '../utils/logger'
 
 export class CosmosClient {
@@ -30,7 +30,7 @@ export class CosmosClient {
     }
   }
 
-  async setupWallet(mnemonic: string): Promise<void> {
+  async setupWallet(mnemonic: string, gasConfig?: GasConfig): Promise<void> {
     try {
       this.wallet = await DirectSecp256k1HdWallet.fromMnemonic(mnemonic, {
         prefix: this.config.prefix,
@@ -39,9 +39,23 @@ export class CosmosClient {
       const accounts = await this.wallet.getAccounts()
       this.address = accounts[0].address
 
+      // 设置SigningStargateClient的选项
+      let clientOptions: any = {}
+
+      if (gasConfig) {
+        // 如果提供了gas配置，设置gasPrice用于auto gas
+        // gasPrice应该是 "amount" + "denom" 的字符串格式
+        clientOptions.gasPrice = `${gasConfig.price}${gasConfig.denom}`
+
+        logger.info(
+          `Setting up client with gas price: ${gasConfig.price}${gasConfig.denom}`
+        )
+      }
+
       this.signingClient = await SigningStargateClient.connectWithSigner(
         this.config.rpc,
-        this.wallet
+        this.wallet,
+        clientOptions
       )
 
       logger.info(`Wallet setup complete for ${this.config.chainId}`, {

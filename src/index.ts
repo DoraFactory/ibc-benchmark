@@ -313,6 +313,14 @@ program
       durationMinutes: config.test.durationMinutes,
       maxConcurrentTxs: config.test.maxConcurrentTxs,
     })
+    logger.info('Gas Config:', {
+      limit: config.gas.limit,
+      price: config.gas.price,
+      denom: config.gas.denom,
+      amount: config.gas.amount,
+      adjustment: config.gas.adjustment,
+      auto: config.gas.auto,
+    })
   })
 
 program

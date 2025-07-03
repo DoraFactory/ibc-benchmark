@@ -93,8 +93,11 @@ export class IBCRelayerTest extends BaseTest {
       // 设置钱包
       logger.info('🔑 Setting up wallets...')
       await Promise.all([
-        this.votaClient.setupWallet(this.config.test.mnemonic),
-        this.osmosisClient.setupWallet(this.config.test.mnemonic),
+        this.votaClient.setupWallet(this.config.test.mnemonic, this.config.gas),
+        this.osmosisClient.setupWallet(
+          this.config.test.mnemonic,
+          this.config.gas
+        ),
       ])
 
       // 显示钱包地址
@@ -408,15 +411,47 @@ export class IBCRelayerTest extends BaseTest {
         `📏 Chain heights - Osmosis: ${osmosisHeight}, Timeout: ${timeoutHeight}`
       )
 
-      const fee = {
-        amount: [
-          {
-            denom: 'peaka',
-            amount: '500000000000000', // 0.0005 DORA (500,000 peaka) - reasonable fee
-          },
-        ],
-        gas: '200000', // Reasonable gas limit based on actual usage (~90k)
+      // 使用环境变量配置fee
+      const gasConfig = this.config.gas
+      let fee: any
+
+      if (gasConfig.amount) {
+        // 如果直接指定了费用金额
+        fee = {
+          amount: [
+            {
+              denom: gasConfig.denom,
+              amount: gasConfig.amount,
+            },
+          ],
+          gas: gasConfig.limit.toString(),
+        }
+      } else {
+        // 根据gas价格计算费用
+        const feeAmount = (
+          gasConfig.limit * parseInt(gasConfig.price)
+        ).toString()
+        fee = {
+          amount: [
+            {
+              denom: gasConfig.denom,
+              amount: feeAmount,
+            },
+          ],
+          gas: gasConfig.limit.toString(),
+        }
       }
+
+      // 如果启用了auto gas，使用'auto'，否则使用计算好的fee
+      const gasValue = gasConfig.auto ? 'auto' : fee
+
+      logger.info('💰 Using gas configuration:', {
+        gasLimit: gasConfig.limit,
+        gasPrice: gasConfig.price,
+        feeDenom: gasConfig.denom,
+        feeAmount: gasConfig.auto ? 'auto' : fee.amount[0].amount,
+        autoGas: gasConfig.auto,
+      })
 
       const msg = {
         typeUrl: '/ibc.applications.transfer.v1.MsgTransfer',
@@ -430,7 +465,7 @@ export class IBCRelayerTest extends BaseTest {
           sender: address,
           receiver: this.config.relayer.osmosisReceiveAddress,
           timeoutHeight: {
-            revisionNumber: 5, // Osmosis testnet revision number
+            revisionNumber: 5,
             revisionHeight: timeoutHeight,
           },
           timeoutTimestamp:
@@ -457,7 +492,7 @@ export class IBCRelayerTest extends BaseTest {
       const result = await client.signAndBroadcast(
         address,
         [msg],
-        fee,
+        gasValue,
         testMemo
       )
 

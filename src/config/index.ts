@@ -49,6 +49,14 @@ export function loadConfig(): TestConfig {
       maxConcurrentTxs: parseInt(process.env.MAX_CONCURRENT_TXS || '10'),
       mnemonic: process.env.TEST_MNEMONIC!,
     },
+    gas: {
+      limit: parseInt(process.env.GAS_LIMIT || '150000'),
+      price: process.env.GAS_PRICE || '25000000000',
+      denom: process.env.FEE_DENOM || 'peaka',
+      amount: process.env.FEE_AMOUNT || undefined,
+      adjustment: parseFloat(process.env.GAS_ADJUSTMENT || '1.5'),
+      auto: process.env.AUTO_GAS === 'true',
+    },
   }
 }
 
@@ -74,11 +82,12 @@ export function loadRelayerTestConfig(): RelayerTestConfig {
   return {
     ...baseConfig,
     relayer: {
-      testAmount: process.env.RELAYER_TEST_AMOUNT || '1',
-      testDenom: process.env.RELAYER_TEST_DENOM || 'stake',
+      testAmount: process.env.RELAYER_TEST_AMOUNT || '1000000000',
+      testDenom: process.env.RELAYER_TEST_DENOM || 'peaka',
       timeoutSeconds: parseInt(process.env.RELAYER_TIMEOUT_SECONDS || '60'),
       osmosisReceiveAddress:
-        process.env.OSMOSIS_RECEIVE_ADDRESS || 'osmo1test123...',
+        process.env.OSMOSIS_RECEIVE_ADDRESS ||
+        'osmo144evyhjknj6vud80tpnmy00khrldp7gpk263zn',
       batchSize: parseInt(process.env.RELAYER_BATCH_SIZE || '10'),
       testInterval: parseInt(process.env.RELAYER_TEST_INTERVAL || '3600'), // 1小时
     },

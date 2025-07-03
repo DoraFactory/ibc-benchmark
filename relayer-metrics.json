@@ -1,0 +1,28 @@
+[
+  {
+    "validatorMoniker": "Relayed by Polkachu | hermes 1.8.0 (https://hermes.informal.systems)",
+    "totalTests": 71,
+    "successfulRelays": 71,
+    "failedRelays": 0,
+    "averageLatency": 10264.859154929578,
+    "maxLatency": 31912,
+    "minLatency": 3331,
+    "successRate": 100,
+    "uptimeHours": 2.967474722222222,
+    "continuousFailures": 0,
+    "lastActiveTime": "2025-07-03T09:32:32.719Z"
+  },
+  {
+    "validatorMoniker": "relayed by CryptoCrew Validators | hermes 1.10.3+e26d356ab (https://hermes.informal.systems)",
+    "totalTests": 12,
+    "successfulRelays": 12,
+    "failedRelays": 0,
+    "averageLatency": 8937.666666666666,
+    "maxLatency": 12644,
+    "minLatency": 3978,
+    "successRate": 100,
+    "uptimeHours": 2.8497327777777777,
+    "continuousFailures": 0,
+    "lastActiveTime": "2025-07-03T09:31:13.886Z"
+  }
+]

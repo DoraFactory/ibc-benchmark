@@ -3,6 +3,7 @@ export interface TestConfig {
   chainB: ChainConfig
   ibc: IBCConfig
   test: TestParams
+  gas: GasConfig
 }
 
 export interface ChainConfig {
@@ -139,4 +140,13 @@ export interface RelayerPerformanceMetrics {
   uptimeHours: number
   continuousFailures: number
   lastActiveTime?: Date
+}
+
+export interface GasConfig {
+  limit: number
+  price: string
+  denom: string
+  amount?: string
+  adjustment: number
+  auto: boolean
 }
