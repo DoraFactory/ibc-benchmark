@@ -161,6 +161,7 @@ export class TestRunner {
         )
         logger.info(`Latency: ${singleTestLog.latency}ms`)
         logger.info(`Relayer: ${singleTestLog.memoIdentifier || 'Unknown'}`)
+        logger.info(`Signer: ${singleTestLog.relayerSigner || 'Unknown'}`)
 
         // 生成简化报告
         const reportGenerator = new ReportGenerator(

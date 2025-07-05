@@ -8,7 +8,7 @@
 
 1. **Send IBC Transfer** - Send real IBC transfer on vota-bobtail
 2. **Extract Packet Sequence** - Extract packet sequence from transaction logs
-3. **Query Target Chain Reception** - Query corresponding `MsgRecvPacket` transaction on osmosis-testnet
+3. **Query Target Chain Reception** - Query corresponding `MsgRecvPacket` transaction on receiverChain-testnet
 4. **Identify Relayer Address** - Extract real relayer address from transaction signers
 5. **Verify Memo Identifier** - Check if memo contains `relayed-by:<moniker>` identifier
 
@@ -33,7 +33,7 @@ console.log('Target Chain Transaction:', ackInfo.targetTxHash)
 IBC relayers produce `MsgRecvPacket` transactions on the target chain, which we can identify through:
 
 ```typescript
-// Query recv_packet events on osmosis-testnet
+// Query recv_packet events on receiverChain-testnet
 const events = await targetClient.searchTx({
   tags: [
     { key: 'recv_packet.packet_src_channel', value: 'channel-0' },
@@ -90,7 +90,7 @@ console.log('Target Chain Transaction:', ackInfo.targetTxHash)
 
 1. **Real IBC Transfer Testing** - Send real IBC transfers
 2. **Packet Acknowledgement Query** - Query real acknowledgement status
-3. **Target Chain Transaction Query** - Find recv_packet transactions on osmosis
+3. **Target Chain Transaction Query** - Find recv_packet transactions on receiverChain
 4. **Relayer Address Identification** - Extract real addresses from transaction signers
 5. **Performance Metrics Calculation** - Calculate performance metrics based on real test data
 6. **Persistent Storage** - Save real test logs and metrics

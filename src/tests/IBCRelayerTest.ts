@@ -16,7 +16,7 @@ import { Tendermint34Client } from '@cosmjs/tendermint-rpc'
 
 export class IBCRelayerTest extends BaseTest {
   private votaClient: CosmosClient
-  private osmosisClient: CosmosClient
+  private receiverChainClient: CosmosClient
   private ibcQueryHelper?: IBCQueryHelper
   private relayerLogs: RelayerTestLog[] = []
   private logFile: string
@@ -25,7 +25,7 @@ export class IBCRelayerTest extends BaseTest {
   constructor(private config: RelayerTestConfig) {
     super('IBC Relayer Test')
     this.votaClient = new CosmosClient(config.chainA)
-    this.osmosisClient = new CosmosClient(config.chainB)
+    this.receiverChainClient = new CosmosClient(config.chainB)
     this.logFile = join(process.cwd(), 'relayer-test-logs.json')
     this.metricsFile = join(process.cwd(), 'relayer-metrics.json')
     this.loadExistingLogs()
@@ -81,12 +81,12 @@ export class IBCRelayerTest extends BaseTest {
     try {
       logger.info('🔌 Connecting to chains...')
       logger.info(`  Chain A (vota-bobtail): ${this.config.chainA.rpc}`)
-      logger.info(`  Chain B (osmosis): ${this.config.chainB.rpc}`)
+      logger.info(`  Chain B (receiverChain): ${this.config.chainB.rpc}`)
 
       // 连接到区块链客户端
       await Promise.all([
         this.votaClient.connect(),
-        this.osmosisClient.connect(),
+        this.receiverChainClient.connect(),
       ])
       logger.info('✅ Blockchain clients connected')
 
@@ -94,7 +94,7 @@ export class IBCRelayerTest extends BaseTest {
       logger.info('🔑 Setting up wallets...')
       await Promise.all([
         this.votaClient.setupWallet(this.config.test.mnemonic, this.config.gas),
-        this.osmosisClient.setupWallet(
+        this.receiverChainClient.setupWallet(
           this.config.test.mnemonic,
           this.config.gas
         ),
@@ -102,26 +102,28 @@ export class IBCRelayerTest extends BaseTest {
 
       // 显示钱包地址
       const votaAddress = this.votaClient.getAddress()
-      const osmosisAddress = this.osmosisClient.getAddress()
+      const receiverChainAddress = this.receiverChainClient.getAddress()
       logger.info(`  Vota address: ${votaAddress}`)
-      logger.info(`  Osmosis address: ${osmosisAddress}`)
+      logger.info(`  receiverChain address: ${receiverChainAddress}`)
       logger.info('✅ Wallets setup completed')
 
       // 初始化IBC查询助手
       try {
         logger.info('🔍 Initializing IBC Query Helper...')
         const votaStargateClient = this.votaClient.getStargateClient()!
-        const osmosisStargateClient = this.osmosisClient.getStargateClient()!
+        const receiverChainStargateClient =
+          this.receiverChainClient.getStargateClient()!
 
         // 获取Tendermint客户端
         const votaTmClient = this.votaClient.getTendermintClient()!
-        const osmosisTmClient = this.osmosisClient.getTendermintClient()!
+        const receiverChainTmClient =
+          this.receiverChainClient.getTendermintClient()!
 
         this.ibcQueryHelper = new IBCQueryHelper(
           votaStargateClient,
-          osmosisStargateClient,
+          receiverChainStargateClient,
           votaTmClient,
-          osmosisTmClient
+          receiverChainTmClient
         )
 
         logger.info('✅ IBC Query Helper initialized')
@@ -404,11 +406,11 @@ export class IBCRelayerTest extends BaseTest {
 
       // 获取目标链当前高度
       logger.info('🔍 Getting target chain height for timeout calculation...')
-      const osmosisHeight = await this.osmosisClient.getHeight()
-      const timeoutHeight = osmosisHeight + 1000 // 在当前高度基础上增加1000个块
+      const ReceiverChainHeight = await this.receiverChainClient.getHeight()
+      const timeoutHeight = ReceiverChainHeight + 1000 // 在当前高度基础上增加1000个块
 
       logger.info(
-        `📏 Chain heights - Osmosis: ${osmosisHeight}, Timeout: ${timeoutHeight}`
+        `📏 Receiver Chain heights: ${ReceiverChainHeight}, Timeout: ${timeoutHeight}`
       )
 
       // 使用环境变量配置fee
@@ -463,7 +465,7 @@ export class IBCRelayerTest extends BaseTest {
             amount: this.config.relayer.testAmount,
           },
           sender: address,
-          receiver: this.config.relayer.osmosisReceiveAddress,
+          receiver: this.config.relayer.receiverChainReceiveAddress,
           timeoutHeight: {
             revisionNumber: 5,
             revisionHeight: timeoutHeight,
@@ -580,25 +582,27 @@ export class IBCRelayerTest extends BaseTest {
 
     while (Date.now() - startTime < timeout) {
       try {
-        // 方法1: 查询 packet acknowledgement
-        const ack = await this.queryPacketAcknowledgement(sequence)
-        if (ack.acknowledged) {
-          logger.info('✅ Acknowledgement found via packet query')
-          return ack
-        }
-
-        // 方法2: 直接在osmosis上搜索recv_packet事件
-        const osmosisRecv = await this.searchOsmosisRecvPacket(sequence)
-        if (osmosisRecv) {
-          logger.info('✅ Found recv_packet event on osmosis')
+        // 方法1: 直接在receiverChain上搜索recv_packet事件（最有效的方法优先）
+        const receiverChainRecv = await this.searchreceiverChainRecvPacket(
+          sequence
+        )
+        if (receiverChainRecv) {
+          logger.info('✅ Found recv_packet event on receiverChain')
           return {
             sequence,
             acknowledged: true,
             ackTime: new Date(),
-            relayerAddress: osmosisRecv.relayerAddress,
-            memo: osmosisRecv.memo,
-            targetTxHash: osmosisRecv.txHash,
+            relayerAddress: receiverChainRecv.relayerAddress,
+            memo: receiverChainRecv.memo,
+            targetTxHash: receiverChainRecv.txHash,
           }
+        }
+
+        // 方法2: 查询 packet acknowledgement
+        const ack = await this.queryPacketAcknowledgement(sequence)
+        if (ack.acknowledged) {
+          logger.info('✅ Acknowledgement found via packet query')
+          return ack
         }
 
         logger.debug(
@@ -620,45 +624,101 @@ export class IBCRelayerTest extends BaseTest {
     }
   }
 
-  private async searchOsmosisRecvPacket(sequence: number): Promise<{
+  private async searchreceiverChainRecvPacket(sequence: number): Promise<{
     txHash: string
     relayerAddress: string
     memo?: string
   } | null> {
     try {
-      // 使用osmosis RPC搜索recv_packet事件，限制搜索最近的交易
+      // 使用receiverChain RPC搜索recv_packet事件，限制搜索最近的交易
       const rpcUrl = this.config.chainB.rpc
 
-      // 先获取当前高度，然后搜索最近1000个块内的交易
-      const heightResponse = await fetch(`${rpcUrl}/status`)
+      // 等待一小段时间让relayer有机会处理IBC包
+      logger.info('⏳ Waiting briefly for relayer to process IBC packet...')
+      await this.sleep(1000) // 等待1秒（减少等待时间）
+
+      // 获取当前高度进行搜索
+      logger.info('🔍 Getting current chain height...')
       let maxHeight = 0
-      if (heightResponse.ok) {
-        const statusData = (await heightResponse.json()) as any
-        maxHeight = parseInt(
-          statusData.result?.sync_info?.latest_block_height || '0'
+
+      try {
+        // 方法1: 使用 cosmjs 客户端获取高度 (更可靠)
+        const client = this.receiverChainClient.getStargateClient()!
+        maxHeight = await client.getHeight()
+        logger.info(`✅ Got height from cosmjs client: ${maxHeight}`)
+      } catch (clientError) {
+        logger.warn(
+          'Failed to get height from cosmjs client, trying RPC status endpoint'
+        )
+
+        // 方法2: 直接调用 /status RPC 端点
+        try {
+          const heightResponse = await fetch(`${rpcUrl}/status`)
+          if (heightResponse.ok) {
+            const statusData = (await heightResponse.json()) as any
+            maxHeight = parseInt(
+              statusData.result?.sync_info?.latest_block_height || '0'
+            )
+            logger.info(`✅ Got height from RPC status: ${maxHeight}`)
+          } else {
+            logger.warn(`Status endpoint failed: ${heightResponse.status}`)
+            const errorText = await heightResponse.text()
+            logger.warn(`Status error: ${errorText}`)
+          }
+        } catch (rpcError) {
+          logger.warn(`RPC status call failed: ${rpcError}`)
+        }
+      }
+
+      // 如果获取高度失败，使用一个合理的默认高度范围
+      if (maxHeight === 0) {
+        maxHeight = 26500000 // 使用一个合理的默认高度
+        logger.warn(
+          `⚠️ Could not get current height, using default: ${maxHeight}`
         )
       }
 
-      const minHeight = Math.max(1, maxHeight - 1000) // 搜索最近1000个块
+      // 正确的搜索策略：从当前高度向前和向后各搜索一定范围
+      // 因为relayer处理需要时间，recv_packet可能在当前高度之后发生
+      const searchBuffer = 10 // 前后各搜索10个块（精确范围提高性能）
+      const minHeight = Math.max(1, maxHeight - searchBuffer)
+      const maxSearchHeight = maxHeight + searchBuffer // 向后也要搜索
 
       // 构建带有高度范围的搜索查询
-      const searchQuery = `recv_packet.packet_sequence='${sequence}' AND recv_packet.packet_src_channel='channel-0' AND tx.height>=${minHeight} AND tx.height<=${maxHeight}`
+      const searchQuery = `recv_packet.packet_sequence='${sequence}' AND recv_packet.packet_src_channel='${this.config.ibc.channelId}' AND tx.height>=${minHeight} AND tx.height<=${maxSearchHeight}`
 
-      logger.debug(
-        `Searching osmosis for sequence ${sequence} in height range ${minHeight}-${maxHeight}`
+      logger.info(
+        `🔍 Searching receiverChain for sequence ${sequence} in height range ${minHeight}-${maxSearchHeight} (current: ${maxHeight})`
       )
+      logger.info(`🔍 Search query: ${searchQuery}`)
+      logger.info(`🔍 Using RPC URL: ${rpcUrl}`)
 
       const response = await fetch(
         `${rpcUrl}/tx_search?query="${encodeURIComponent(
           searchQuery
-        )}"&per_page=5&order_by="desc"` // 按时间倒序，最新的在前
+        )}"&per_page=10&order_by="desc"` // 按时间倒序，最新的在前
       )
+
+      logger.info(`🔍 Search response status: ${response.status}`)
+
       if (!response.ok) {
-        logger.debug(`Osmosis search failed: ${response.status}`)
+        logger.warn(`receiverChain search failed: ${response.status}`)
+        const errorText = await response.text()
+        logger.warn(`Error response: ${errorText}`)
+
+        // 如果精确搜索失败，直接返回null，不再尝试其他低效搜索
+        logger.warn('⚠️ Precise search failed, no fallback search needed')
+
         return null
       }
 
       const data = (await response.json()) as any
+      logger.info(
+        `🔍 Search returned ${data.result?.total_count || 0} total results`
+      )
+      logger.info(
+        `🔍 Search returned ${data.result?.txs?.length || 0} transactions`
+      )
       if (data.result && data.result.txs && data.result.txs.length > 0) {
         // 取最新的交易（第一个）
         const tx = data.result.txs[0]
@@ -690,7 +750,7 @@ export class IBCRelayerTest extends BaseTest {
           }
         }
 
-        // 提取osmosis上relayer交易的memo信息
+        // 提取receiverChain上relayer交易的memo信息
         let relayerMemo: string | undefined
         let ibcPacketMemo: string | undefined
 
@@ -740,7 +800,7 @@ export class IBCRelayerTest extends BaseTest {
           if (!relayerMemo) {
             try {
               logger.info('Trying cosmjs client getTx method...')
-              const client = this.osmosisClient.getStargateClient()!
+              const client = this.receiverChainClient.getStargateClient()!
               const txDetails = await client.getTx(tx.hash)
 
               if (txDetails) {
@@ -776,17 +836,17 @@ export class IBCRelayerTest extends BaseTest {
 
           // 记录调试信息
           if (!relayerMemo) {
-            logger.debug('No relayer memo found in osmosis transaction')
+            logger.debug('No relayer memo found in receiverChain transaction')
           }
         } catch (memoError) {
           logger.debug(
-            'Failed to extract memo from osmosis transaction:',
+            'Failed to extract memo from receiverChain transaction:',
             memoError
           )
         }
 
         logger.info(
-          `🎯 Found recent osmosis recv_packet: ${tx.hash} at height ${tx.height} (${timeDiff} blocks ago)`
+          `🎯 Found recent receiverChain recv_packet: ${tx.hash} at height ${tx.height} (${timeDiff} blocks ago)`
         )
         logger.info(`   Relayer Address: ${relayerAddress}`)
         if (relayerMemo) {
@@ -805,7 +865,300 @@ export class IBCRelayerTest extends BaseTest {
       logger.debug(`No recent recv_packet found for sequence ${sequence}`)
       return null
     } catch (error) {
-      logger.debug(`Osmosis search error: ${error}`)
+      logger.debug(`receiverChain search error: ${error}`)
+      return null
+    }
+  }
+
+  private async searchKnownTransactionHash(sequence: number): Promise<{
+    txHash: string
+    relayerAddress: string
+    memo?: string
+  } | null> {
+    // 这个方法现在只用于特殊调试场景，一般情况下直接返回null
+    // 如果需要调试特定交易，可以在这里临时添加交易哈希
+    logger.debug(
+      'Skipping known transaction hash search (no hashes configured)'
+    )
+    return null
+  }
+
+  private async broadSearchRecvPacket(sequence: number): Promise<{
+    txHash: string
+    relayerAddress: string
+    memo?: string
+  } | null> {
+    try {
+      logger.info(
+        `🔍 Starting broad search for recv_packet events with sequence ${sequence}`
+      )
+      const rpcUrl = this.config.chainB.rpc
+
+      // 先尝试不带高度限制的搜索
+      const queries = [
+        `recv_packet.packet_sequence='${sequence}'`,
+        `recv_packet.packet_src_channel='${this.config.ibc.channelId}'`,
+        `message.action='/ibc.core.channel.v1.MsgRecvPacket'`,
+      ]
+
+      // 首先尝试使用 cosmjs 客户端搜索 (更可靠)
+      try {
+        logger.info('🔍 Trying cosmjs client broad search...')
+        const client = this.receiverChainClient.getStargateClient()!
+
+        // 获取当前高度范围用于过滤
+        const currentHeight = await client.getHeight()
+        const searchBuffer = 10 // 前后各搜索10个块（精确范围提高性能）
+        const recentMinHeight = Math.max(1, currentHeight - searchBuffer)
+        const recentMaxHeight = currentHeight + searchBuffer
+        logger.info(
+          `🔍 Filtering transactions within height range: ${recentMinHeight}-${recentMaxHeight} (current: ${currentHeight})`
+        )
+
+        // 尝试搜索条件（优化为只使用最有效的搜索）
+        const searchQueries = [
+          [
+            { key: 'recv_packet.packet_sequence', value: sequence.toString() },
+            {
+              key: 'recv_packet.packet_src_channel',
+              value: this.config.ibc.channelId,
+            },
+          ],
+          [{ key: 'recv_packet.packet_sequence', value: sequence.toString() }],
+        ]
+
+        for (let i = 0; i < searchQueries.length; i++) {
+          try {
+            logger.info(
+              `🔍 Cosmjs search attempt ${i + 1}/${searchQueries.length}`
+            )
+            const searchResults = await client.searchTx(searchQueries[i])
+
+            logger.info(
+              `🔍 Cosmjs search returned ${searchResults.length} results`
+            )
+
+            for (const tx of searchResults) {
+              // 首先检查高度是否在合理范围内
+              if (tx.height < recentMinHeight || tx.height > recentMaxHeight) {
+                logger.debug(
+                  `🔍 Skipping transaction outside range: ${tx.hash} at height ${tx.height} (range: ${recentMinHeight}-${recentMaxHeight})`
+                )
+                continue
+              }
+
+              if (tx.events) {
+                for (const event of tx.events) {
+                  if (event.type === 'recv_packet') {
+                    const attributes = event.attributes || []
+                    const packetSeq = attributes.find(
+                      (attr) => attr.key === 'packet_sequence'
+                    )?.value
+                    const srcChannel = attributes.find(
+                      (attr) => attr.key === 'packet_src_channel'
+                    )?.value
+
+                    logger.info(
+                      `🔍 Found recv_packet: seq=${packetSeq}, channel=${srcChannel}, height=${tx.height}`
+                    )
+
+                    if (
+                      packetSeq === sequence.toString() &&
+                      srcChannel === this.config.ibc.channelId
+                    ) {
+                      logger.info(
+                        `✅ Found matching recv_packet transaction via cosmjs: ${tx.hash} at height ${tx.height}`
+                      )
+
+                      // 提取relayer地址
+                      let relayerAddress = 'unknown'
+                      for (const msgEvent of tx.events) {
+                        if (msgEvent.type === 'message') {
+                          const senderAttr = msgEvent.attributes?.find(
+                            (attr) => attr.key === 'sender'
+                          )
+                          if (senderAttr && senderAttr.value) {
+                            relayerAddress = senderAttr.value
+                            break
+                          }
+                        }
+                      }
+
+                      // 提取memo信息
+                      let memoInfo: string | undefined
+                      try {
+                        logger.info(
+                          '🔍 Extracting memo from cosmjs transaction...'
+                        )
+                        const client =
+                          this.receiverChainClient.getStargateClient()!
+                        const txDetails = await client.getTx(tx.hash)
+
+                        if (txDetails) {
+                          const { decodeTxRaw } = await import(
+                            '@cosmjs/proto-signing'
+                          )
+                          const decodedTx = decodeTxRaw(txDetails.tx)
+
+                          if (decodedTx.body && decodedTx.body.memo) {
+                            const memo = decodedTx.body.memo.trim()
+                            logger.info(`Found memo in transaction: "${memo}"`)
+
+                            // 跳过我们自己的测试memo
+                            if (memo && !memo.startsWith('IBC-relay-test-')) {
+                              memoInfo = memo
+                              logger.info(
+                                `✅ Using relayer memo: "${memoInfo}"`
+                              )
+                            } else {
+                              logger.info(`Skipping test memo: "${memo}"`)
+                            }
+                          }
+                        }
+                      } catch (memoError) {
+                        logger.debug(
+                          'Failed to extract memo from cosmjs tx:',
+                          memoError
+                        )
+                      }
+
+                      return {
+                        txHash: tx.hash,
+                        relayerAddress,
+                        memo: memoInfo,
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          } catch (searchError) {
+            logger.debug(`Cosmjs search ${i + 1} failed: ${searchError}`)
+          }
+        }
+      } catch (cosmjsError) {
+        logger.warn(`Cosmjs broad search failed: ${cosmjsError}`)
+      }
+
+      // 如果 cosmjs 搜索失败，尝试 RPC 搜索作为备选方案
+      for (const query of queries) {
+        try {
+          logger.info(`🔍 Trying RPC query: ${query}`)
+          const response = await fetch(
+            `${rpcUrl}/tx_search?query="${encodeURIComponent(
+              query
+            )}"&per_page=50&order_by="desc"`
+          )
+
+          if (response.ok) {
+            const data = (await response.json()) as any
+            logger.info(
+              `🔍 Query returned ${data.result?.total_count || 0} results`
+            )
+
+            if (data.result && data.result.txs) {
+              for (const tx of data.result.txs) {
+                if (tx.tx_result && tx.tx_result.events) {
+                  for (const event of tx.tx_result.events) {
+                    if (event.type === 'recv_packet') {
+                      const attributes = event.attributes || []
+                      const packetSeq = attributes.find(
+                        (attr: any) => attr.key === 'packet_sequence'
+                      )?.value
+                      const srcChannel = attributes.find(
+                        (attr: any) => attr.key === 'packet_src_channel'
+                      )?.value
+
+                      logger.info(
+                        `🔍 Found recv_packet: seq=${packetSeq}, channel=${srcChannel}`
+                      )
+
+                      if (
+                        packetSeq === sequence.toString() &&
+                        srcChannel === this.config.ibc.channelId
+                      ) {
+                        logger.info(
+                          `✅ Found matching recv_packet transaction: ${tx.hash}`
+                        )
+
+                        // 提取relayer地址
+                        let relayerAddress = 'unknown'
+                        for (const msgEvent of tx.tx_result.events) {
+                          if (
+                            msgEvent.type === 'message' &&
+                            msgEvent.attributes
+                          ) {
+                            const senderAttr = msgEvent.attributes.find(
+                              (attr: any) => attr.key === 'sender'
+                            )
+                            if (senderAttr && senderAttr.value) {
+                              relayerAddress = senderAttr.value
+                              break
+                            }
+                          }
+                        }
+
+                        // 提取memo信息
+                        let memoInfo: string | undefined
+                        try {
+                          logger.info(
+                            '🔍 Extracting memo from RPC transaction...'
+                          )
+                          if (tx.tx) {
+                            const txBytes = Buffer.from(tx.tx, 'base64')
+                            const { decodeTxRaw } = await import(
+                              '@cosmjs/proto-signing'
+                            )
+                            const decodedTx = decodeTxRaw(txBytes)
+
+                            if (decodedTx.body && decodedTx.body.memo) {
+                              const memo = decodedTx.body.memo.trim()
+                              logger.info(
+                                `Found memo in transaction: "${memo}"`
+                              )
+
+                              // 跳过我们自己的测试memo
+                              if (memo && !memo.startsWith('IBC-relay-test-')) {
+                                memoInfo = memo
+                                logger.info(
+                                  `✅ Using relayer memo: "${memoInfo}"`
+                                )
+                              } else {
+                                logger.info(`Skipping test memo: "${memo}"`)
+                              }
+                            }
+                          }
+                        } catch (memoError) {
+                          logger.debug(
+                            'Failed to extract memo from RPC tx:',
+                            memoError
+                          )
+                        }
+
+                        return {
+                          txHash: tx.hash,
+                          relayerAddress,
+                          memo: memoInfo,
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          } else {
+            logger.debug(
+              `RPC query failed: ${query}, status: ${response.status}`
+            )
+          }
+        } catch (error) {
+          logger.debug(`Query failed: ${query}, error: ${error}`)
+        }
+      }
+
+      return null
+    } catch (error) {
+      logger.debug(`Error in broadSearchRecvPacket: ${error}`)
       return null
     }
   }
@@ -945,7 +1298,7 @@ export class IBCRelayerTest extends BaseTest {
 
     try {
       // 在目标链上验证交易
-      const client = this.osmosisClient.getStargateClient()!
+      const client = this.receiverChainClient.getStargateClient()!
       const tx = await client.getTx(ack.targetTxHash)
       return tx
     } catch (error) {
@@ -1036,12 +1389,14 @@ export class IBCRelayerTest extends BaseTest {
     memo?: string
   } | null> {
     try {
-      const client = this.osmosisClient.getStargateClient()!
+      const client = this.receiverChainClient.getStargateClient()!
       const latestHeight = await client.getHeight()
-      const searchFromHeight = Math.max(1, latestHeight - 1000) // 搜索最近1000个区块
+      const searchBuffer = 10 // 前后各搜索10个块（精确范围提高性能）
+      const searchFromHeight = Math.max(1, latestHeight - searchBuffer)
+      const searchToHeight = latestHeight + searchBuffer
 
       logger.info(
-        `Searching for recv_packet transaction in blocks ${searchFromHeight} to ${latestHeight}`
+        `Searching for recv_packet transaction in blocks ${searchFromHeight} to ${searchToHeight} (current: ${latestHeight})`
       )
 
       // 使用searchTx API查找包含recv_packet事件的交易
@@ -1058,14 +1413,30 @@ export class IBCRelayerTest extends BaseTest {
         ])
 
         if (searchResults.length > 0) {
-          const tx = searchResults[0]
-          const relayerAddress = this.extractRelayerFromTx(tx)
+          // 过滤高度范围内的交易
+          const recentTxs = searchResults.filter(
+            (tx) => tx.height >= searchFromHeight && tx.height <= searchToHeight
+          )
 
-          return {
-            txHash: tx.hash,
-            relayerAddress: relayerAddress || 'unknown',
-            timestamp: new Date(), // IndexedTx doesn't have timestamp, use current time
-            memo: this.extractMemoFromTx(tx),
+          if (recentTxs.length > 0) {
+            // 取最新的交易（最高的高度）
+            const tx = recentTxs.sort((a, b) => b.height - a.height)[0]
+            const relayerAddress = this.extractRelayerFromTx(tx)
+
+            logger.info(
+              `✅ Found recent recv_packet transaction: ${tx.hash} at height ${tx.height}`
+            )
+
+            return {
+              txHash: tx.hash,
+              relayerAddress: relayerAddress || 'unknown',
+              timestamp: new Date(), // IndexedTx doesn't have timestamp, use current time
+              memo: this.extractMemoFromTx(tx),
+            }
+          } else {
+            logger.warn(
+              `⚠️ Found ${searchResults.length} transactions but none are recent (within height range ${searchFromHeight}-${searchToHeight})`
+            )
           }
         }
       } catch (searchError) {
@@ -1079,7 +1450,7 @@ export class IBCRelayerTest extends BaseTest {
       return await this.manualBlockSearch(
         sequence,
         searchFromHeight,
-        latestHeight
+        searchToHeight
       )
     } catch (error) {
       logger.error('Failed to find target chain receive transaction:', error)
@@ -1098,7 +1469,7 @@ export class IBCRelayerTest extends BaseTest {
     memo?: string
   } | null> {
     try {
-      const client = this.osmosisClient.getStargateClient()!
+      const client = this.receiverChainClient.getStargateClient()!
 
       // 逆序搜索（从最新区块开始）
       for (let height = toHeight; height >= fromHeight; height--) {
@@ -1403,7 +1774,7 @@ export class IBCRelayerTest extends BaseTest {
     try {
       await Promise.all([
         this.votaClient.disconnect(),
-        this.osmosisClient.disconnect(),
+        this.receiverChainClient.disconnect(),
       ])
       logger.info('Clients disconnected')
     } catch (error) {

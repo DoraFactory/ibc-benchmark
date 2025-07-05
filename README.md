@@ -38,8 +38,8 @@ CHAIN_A_RPC=https://vota-bobtail-rpc.dorafactory.org:443
 CHAIN_A_ID=vota-bobtail
 CHAIN_A_PREFIX=dora
 
-# Chain B (osmosis-testnet)
-CHAIN_B_RPC=https://rpc.testnet.osmosis.zone:443
+# Chain B (receiverChain-testnet)
+CHAIN_B_RPC=https://rpc.testnet.receiverChain.zone:443
 CHAIN_B_ID=osmo-test-5
 CHAIN_B_PREFIX=osmo
 
@@ -49,7 +49,7 @@ CHANNEL_ID=channel-xxx       # Query real channel ID
 
 # Test Configuration
 TEST_MNEMONIC=your wallet mnemonic here
-OSMOSIS_RECEIVE_ADDRESS=osmo1...your_osmosis_address...
+receiverChain_RECEIVE_ADDRESS=osmo1...your_receiverChain_address...
 ```
 
 ### 🔍 How to Get Real Connection ID and Channel ID
@@ -63,7 +63,7 @@ dorad query ibc connection connections --node https://vota-bobtail-rpc.dorafacto
 # Query all channels on vota-bobtail
 dorad query ibc channel channels --node https://vota-bobtail-rpc.dorafactory.org:443
 
-# Find channels connected to osmosis
+# Find channels connected to receiverChain
 dorad query ibc channel channels --node https://vota-bobtail-rpc.dorafactory.org:443 | grep -A 10 -B 10 "osmo"
 ```
 
@@ -183,9 +183,9 @@ According to the [Test Rules Document](test_rules.md), IBC Relayer testing inclu
 ### 1. Basic Test Process
 
 1. **Check Channel Status** - Verify that the IBC channel is in OPEN state
-2. **Initiate IBC Transfer** - Send test transaction to osmosis-testnet
+2. **Initiate IBC Transfer** - Send test transaction to receiverChain-testnet
 3. **Wait for Acknowledgement** - Monitor packet acknowledgement
-4. **Verify Target Chain Transaction** - Confirm transaction receipt on osmosis
+4. **Verify Target Chain Transaction** - Confirm transaction receipt on receiverChain
 5. **Record Test Logs** - Save detailed test results
 
 ### 2. Test Data Recording
@@ -199,7 +199,7 @@ Each test records the following information:
 | Packet Sequence      | IBC packet sequence number                   |
 | Success Status       | true/false                                   |
 | Latency (seconds)    | Time from send to acknowledgement receipt    |
-| Target Chain Tx Hash | Receive transaction hash on osmosis          |
+| Target Chain Tx Hash | Receive transaction hash on receiverChain    |
 | Relayer Signer       | Actual relay address                         |
 | Memo Identifier      | Moniker in memo                              |
 | Error Message        | Specific error when failed                   |

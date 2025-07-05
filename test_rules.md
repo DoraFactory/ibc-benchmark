@@ -14,7 +14,7 @@
 ## 🛠 所需条件
 
 - vota-bobtail 链正常运行，且 RPC 与 LCD 接口可访问。
-- 至少一个 IBC channel（如 `channel-0`）与 osmosis-testnet 已建立。
+- 至少一个 IBC channel（如 `channel-0`）与 receiverChain-testnet 已建立。
 - validators 已提交意愿并声称可以提供 IBC relay 服务。
 - 有一个测试钱包地址用于发起 IBC transfer。
 - validators 被要求 relay 的交易中使用 `memo=relayed-by:<moniker>` 进行身份标识。
@@ -25,10 +25,10 @@
 
 ### Step 1：发起 IBC transfer 测试交易
 
-使用 vota-bobtail 向 osmosis-testnet 发起 IBC 转账交易：
+使用 vota-bobtail 向 receiverChain-testnet 发起 IBC 转账交易：
 
 ```bash
-dorad tx ibc-transfer transfer transfer channel-0 <osmosis接收地址> 1stake \
+dorad tx ibc-transfer transfer transfer channel-0 <receiverChain接收地址> 1stake \
   --from <测试钱包> \
   --chain-id vota-bobtail \
   --node https://vota-bobtail-rpc.dorafactory.org:443 \
@@ -53,7 +53,7 @@ dorad query ibc channel packet-acknowledgements transfer channel-0 \
 
 - 记录 ack 收到时间；
 - 计算从发送到 ack 的延迟时间（秒）；
-- 去目标链（如 osmosis）查对应的接收交易；
+- 去目标链（如 receiverChain）查对应的接收交易；
 - 获取 signer 地址及 memo 内容，确认是哪位 relayer。
 
 ### Step 2.5：处理异常情况
@@ -67,18 +67,18 @@ dorad query ibc channel packet-acknowledgements transfer channel-0 \
 
 建议将测试日志以表格形式存储：
 
-| 字段            | 说明                       |
-| --------------- | -------------------------- |
-| 测试时间        | 发起交易的时间戳           |
-| 交易 Hash       | vota-bobtail 上的交易 hash |
-| Packet Sequence | IBC packet 序列号          |
-| 是否成功        | true/false                 |
-| 延迟(秒)        | 从发送到收到 ack 的时间    |
-| 目标链交易 Hash | osmosis 上的接收交易 hash  |
-| Relayer Signer  | 实际 relay 的地址          |
-| Memo 标识       | memo 中的 moniker          |
-| 错误信息        | 失败时的具体错误           |
-| 接收金额        | 验证金额是否正确           |
+| 字段            | 说明                            |
+| --------------- | ------------------------------- |
+| 测试时间        | 发起交易的时间戳                |
+| 交易 Hash       | vota-bobtail 上的交易 hash      |
+| Packet Sequence | IBC packet 序列号               |
+| 是否成功        | true/false                      |
+| 延迟(秒)        | 从发送到收到 ack 的时间         |
+| 目标链交易 Hash | receiverChain 上的接收交易 hash |
+| Relayer Signer  | 实际 relay 的地址               |
+| Memo 标识       | memo 中的 moniker               |
+| 错误信息        | 失败时的具体错误                |
+| 接收金额        | 验证金额是否正确                |
 
 ### 压力测试
 

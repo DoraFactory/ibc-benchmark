@@ -102,7 +102,7 @@ export interface RelayerTestConfig extends TestConfig {
     testAmount: string
     testDenom: string
     timeoutSeconds: number
-    osmosisReceiveAddress: string
+    receiverChainReceiveAddress: string
     batchSize: number
     testInterval: number
     stabilityTestCount?: number

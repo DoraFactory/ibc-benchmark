@@ -85,9 +85,7 @@ export function loadRelayerTestConfig(): RelayerTestConfig {
       testAmount: process.env.RELAYER_TEST_AMOUNT || '1000000000',
       testDenom: process.env.RELAYER_TEST_DENOM || 'peaka',
       timeoutSeconds: parseInt(process.env.RELAYER_TIMEOUT_SECONDS || '60'),
-      osmosisReceiveAddress:
-        process.env.OSMOSIS_RECEIVE_ADDRESS ||
-        'osmo144evyhjknj6vud80tpnmy00khrldp7gpk263zn',
+      receiverChainReceiveAddress: process.env.RECEIVE_ADDRESS || '',
       batchSize: parseInt(process.env.RELAYER_BATCH_SIZE || '10'),
       testInterval: parseInt(process.env.RELAYER_TEST_INTERVAL || '3600'), // 1小时
     },
