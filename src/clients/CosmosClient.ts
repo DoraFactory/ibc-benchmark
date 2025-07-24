@@ -4,9 +4,57 @@ import { Tendermint34Client } from '@cosmjs/tendermint-rpc'
 import { ChainConfig, GasConfig } from '../types'
 import { logger } from '../utils/logger'
 
+/**
+ * 自定义的SigningStargateClient，允许配置gas倍数
+ */
+class CustomSigningStargateClient extends SigningStargateClient {
+  private customGasMultiplier?: number
+
+  constructor(
+    cometClient: any,
+    signer: any,
+    options: any = {},
+    gasMultiplier?: number
+  ) {
+    super(cometClient, signer, options)
+
+    // 存储自定义的gas倍数
+    if (gasMultiplier !== undefined && gasMultiplier > 0) {
+      this.customGasMultiplier = gasMultiplier
+      logger.info(`🔧 Custom gas multiplier set to: ${gasMultiplier}`)
+    } else {
+      this.customGasMultiplier = undefined
+      logger.debug('🔧 Using default gas multiplier from parent class')
+    }
+
+    if (this.customGasMultiplier !== undefined) {
+      ;(this as any).defaultGasMultiplier = this.customGasMultiplier
+    }
+  }
+
+  /**
+   * 创建带有自定义gas倍数的客户端实例
+   */
+  static async connectWithSigner(
+    endpoint: string,
+    signer: any,
+    options: any = {},
+    gasMultiplier?: number
+  ): Promise<CustomSigningStargateClient> {
+    const { connectComet } = await import('@cosmjs/tendermint-rpc')
+    const cometClient = await connectComet(endpoint)
+    return new CustomSigningStargateClient(
+      cometClient,
+      signer,
+      options,
+      gasMultiplier
+    )
+  }
+}
+
 export class CosmosClient {
   private stargateClient?: StargateClient
-  private signingClient?: SigningStargateClient
+  private signingClient?: CustomSigningStargateClient
   private tmClient?: Tendermint34Client
   private wallet?: DirectSecp256k1HdWallet
   private address?: string
@@ -52,10 +100,14 @@ export class CosmosClient {
         )
       }
 
-      this.signingClient = await SigningStargateClient.connectWithSigner(
+      // 提取gas倍数配置
+      const gasMultiplier = gasConfig?.adjustment
+
+      this.signingClient = await CustomSigningStargateClient.connectWithSigner(
         this.config.rpc,
         this.wallet,
-        clientOptions
+        clientOptions,
+        gasMultiplier
       )
 
       logger.info(`Wallet setup complete for ${this.config.chainId}`, {
@@ -155,7 +207,7 @@ export class CosmosClient {
     return this.address
   }
 
-  getSigningClient(): SigningStargateClient | undefined {
+  getSigningClient(): CustomSigningStargateClient | undefined {
     return this.signingClient
   }
 

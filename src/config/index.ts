@@ -50,12 +50,12 @@ export function loadConfig(): TestConfig {
       mnemonic: process.env.TEST_MNEMONIC!,
     },
     gas: {
-      limit: parseInt(process.env.GAS_LIMIT || '150000'),
       price: process.env.GAS_PRICE || '25000000000',
       denom: process.env.FEE_DENOM || 'peaka',
-      amount: process.env.FEE_AMOUNT || undefined,
-      adjustment: parseFloat(process.env.GAS_ADJUSTMENT || '1.5'),
-      auto: process.env.AUTO_GAS === 'true',
+      auto: process.env.AUTO_GAS !== 'false', // 默认使用auto gas，除非明确设置为false
+      adjustment: process.env.GAS_ADJUSTMENT
+        ? parseFloat(process.env.GAS_ADJUSTMENT)
+        : undefined, // 可选的gas倍数，默认使用CosmJS的1.4
     },
   }
 }

@@ -407,52 +407,32 @@ export class IBCRelayerTest extends BaseTest {
       // 获取目标链当前高度
       logger.info('🔍 Getting target chain height for timeout calculation...')
       const ReceiverChainHeight = await this.receiverChainClient.getHeight()
-      const timeoutHeight = ReceiverChainHeight + 1000 // 在当前高度基础上增加1000个块
+      const timeoutHeight = ReceiverChainHeight + 1000 
 
       logger.info(
         `📏 Receiver Chain heights: ${ReceiverChainHeight}, Timeout: ${timeoutHeight}`
       )
 
-      // 使用环境变量配置fee
       const gasConfig = this.config.gas
-      let fee: any
 
-      if (gasConfig.amount) {
-        // 如果直接指定了费用金额
-        fee = {
-          amount: [
-            {
-              denom: gasConfig.denom,
-              amount: gasConfig.amount,
-            },
-          ],
-          gas: gasConfig.limit.toString(),
-        }
-      } else {
-        // 根据gas价格计算费用
-        const feeAmount = (
-          gasConfig.limit * parseInt(gasConfig.price)
-        ).toString()
-        fee = {
-          amount: [
-            {
-              denom: gasConfig.denom,
-              amount: feeAmount,
-            },
-          ],
-          gas: gasConfig.limit.toString(),
-        }
-      }
+      const gasValue = gasConfig.adjustment ? gasConfig.adjustment : 'auto'
 
-      // 如果启用了auto gas，使用'auto'，否则使用计算好的fee
-      const gasValue = gasConfig.auto ? 'auto' : fee
+      logger.info('🔧 Gas Configuration Debug:', {
+        rawAdjustment: gasConfig.adjustment,
+        adjustmentType: typeof gasConfig.adjustment,
+        finalGasValue: gasValue,
+        gasValueType: typeof gasValue,
+        configSource: gasConfig.adjustment
+          ? 'ENV:GAS_ADJUSTMENT'
+          : 'CosmJS:default',
+      })
 
       logger.info('💰 Using gas configuration:', {
-        gasLimit: gasConfig.limit,
         gasPrice: gasConfig.price,
         feeDenom: gasConfig.denom,
-        feeAmount: gasConfig.auto ? 'auto' : fee.amount[0].amount,
-        autoGas: gasConfig.auto,
+        gasMultiplier: gasConfig.adjustment || 'default(1.4)',
+        gasMode: gasConfig.adjustment ? 'custom multiplier' : 'auto',
+        autoGas: true,
       })
 
       const msg = {
@@ -486,8 +466,8 @@ export class IBCRelayerTest extends BaseTest {
         receiver: msg.value.receiver,
         memo: msg.value.memo,
         timeoutHeight: `${msg.value.timeoutHeight.revisionNumber}-${msg.value.timeoutHeight.revisionHeight}`,
-        fee: fee,
-        gas: fee.gas,
+        gasMode: 'auto',
+        gasPrice: gasConfig.price,
       })
 
       logger.info('🔐 Signing and broadcasting transaction...')

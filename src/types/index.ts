@@ -143,10 +143,8 @@ export interface RelayerPerformanceMetrics {
 }
 
 export interface GasConfig {
-  limit: number
   price: string
   denom: string
-  amount?: string
-  adjustment: number
+  adjustment?: number
   auto: boolean
 }
